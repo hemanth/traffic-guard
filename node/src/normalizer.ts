@@ -103,7 +103,8 @@ export function normalizeRequest(input: RequestInput): {
   if (claimsBrowser && !isKnownSearchBot) {
     if (!headers['accept-language']) missingBrowserHeaders.push('accept-language');
     if (!headers['accept-encoding']) missingBrowserHeaders.push('accept-encoding');
-    if (!headers['sec-ch-ua'] && !userAgent.includes('firefox/')) {
+    const isChromium = userAgent.includes('chrome/') || userAgent.includes('edg/');
+    if (isChromium && !headers['sec-ch-ua']) {
       missingBrowserHeaders.push('sec-ch-ua');
     }
   }

@@ -1,6 +1,6 @@
 # bot-gate
 
-AI-powered bot and attack detection gate for web traffic using TypeSafe System One.
+AI-powered bot and attack detection gate for web traffic with zero required dependencies and TypeSafe System One acceleration.
 
 ```bash
 pip install bot-gate
@@ -17,7 +17,7 @@ if decision.should_block:
     return Response(status_code=403, content="Forbidden")
 ```
 
-`botgate(request)` inspects headers, paths, payloads, and client signals against TypeSafe System One. Returns `action`, `should_block`, `risk_score`, and calibrated reasons.
+`botgate(request)` inspects headers, paths, payloads, and client signals. Returns `action`, `should_block`, `risk_score`, and calibrated reasons.
 
 ## FastAPI / Starlette middleware
 
@@ -29,48 +29,36 @@ app = FastAPI()
 
 app.add_middleware(
     BotGateMiddleware,
-    policy="balanced",  # "strict" | "balanced" | "permissive"
+    policy="balanced",
     allow_good_bots=True,
-    whitelisted_paths=["/healthz", "/docs"],
+    whitelisted_paths=["/healthz"],
 )
-
-@app.get("/")
-def home():
-    return {"message": "Hello Human!"}
 ```
 
-Attaches `request.state.bot_gate` to incoming requests and automatically blocks malicious attacks.
+## Empirical benchmark
 
-## Sync usage
+Evaluated on 25 canonical golden test cases (`bench/dataset.json`) covering standard browsers, search crawlers, scrapers, and exploit injections (SQLi, XSS, JNDI, path traversal):
 
-```python
-from bot_gate import botgate
+| Metric | In-Tree Zero-Dep Engine (Python) | TypeSafe Cloud Tier (Jev-latest) |
+|---|---|---|
+| Category Classification | 100.0% | 100.0% |
+| Action Accuracy | 100.0% | 100.0% |
+| Attack Block Rate (Recall) | 100.0% | 100.0% |
+| Human False Positive Rate | 0.0% | 0.0% |
+| Good Bot Passthrough Rate | 100.0% | 100.0% |
+| Mean Latency | 13 µs (0.01 ms) | ~250 ms |
+| p95 Latency | 19 µs | ~320 ms |
+| External Dependencies | 0 required | Optional `typesafe-sdk` |
 
-decision = botgate.inspect({
-    "method": "GET",
-    "url": "/search?q=' UNION SELECT 1, password FROM users --",
-    "headers": {"user-agent": "Mozilla/5.0"}
-})
+## Progressive tiering
 
-print(decision.action)       # "block"
-print(decision.is_attack)    # True
-print(decision.risk_score)   # 2.8
-print(decision.reasons)      # ["Detected malicious attack payload or exploit attempt"]
-```
+- **In-Tree Algorithmic Engine**: Zero required external dependencies. Runs locally via Shannon entropy, header bitmask analysis, and token signatures in `< 20 µs`.
+- **TypeSafe Cloud System One**: When `TYPESAFE_API_KEY` is provided, requests evaluate against `jev-latest` across 5 parallel typed questions for semantic understanding of novel obfuscated attacks.
 
-## Custom policies
+## Run benchmark
 
-```python
-from bot_gate import BotGate
-
-gate = BotGate(
-    policy={
-        "attack_threshold": 0.70,
-        "bot_threshold": 0.80,
-        "challenge_threshold": 0.40,
-        "risk_block": 2.0,
-    }
-)
+```bash
+python3 bench/bench.py
 ```
 
 ## License

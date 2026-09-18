@@ -130,7 +130,8 @@ def normalize_request(request_input: Any) -> tuple[NormalizedRequest, RequestCon
             missing_browser_headers.append("accept-language")
         if "accept-encoding" not in headers:
             missing_browser_headers.append("accept-encoding")
-        if "sec-ch-ua" not in headers and "firefox/" not in user_agent:
+        is_chromium = "chrome/" in user_agent or "edg/" in user_agent
+        if is_chromium and "sec-ch-ua" not in headers:
             missing_browser_headers.append("sec-ch-ua")
 
     suspicious_signatures: list[str] = []

@@ -1,5 +1,4 @@
-import { TypeSafeClient } from '@typesafe-ai/sdk';
-import { createBotGateBattery, heuristicAssessment } from './battery.js';
+import { createBotGateBattery, heuristicAssessment, loadTypeSafePrimitives } from './battery.js';
 import { normalizeRequest } from './normalizer.js';
 import { evaluateDecision, resolvePolicy } from './policy.js';
 import type {
@@ -10,21 +9,50 @@ import type {
   TrafficCategory
 } from './types.js';
 
+let sdkLoaded = false;
+let TypeSafeClientClass: any = null;
+
+async function getTypeSafeClientClass() {
+  if (!sdkLoaded) {
+    try {
+      const sdk = await import('@typesafe-ai/sdk');
+      TypeSafeClientClass = sdk.TypeSafeClient;
+      await loadTypeSafePrimitives();
+    } catch {
+      TypeSafeClientClass = null;
+    }
+    sdkLoaded = true;
+  }
+  return TypeSafeClientClass;
+}
+
 export class BotGate {
-  private client: TypeSafeClient | null = null;
+  private client: any = null;
+  private clientInitAttempted = false;
   private options: BotGateOptions;
   private battery = createBotGateBattery();
 
   constructor(options: BotGateOptions = {}) {
     this.options = options;
-    const apiKey = options.apiKey || process.env.TYPESAFE_API_KEY;
-    if (apiKey) {
-      this.client = new TypeSafeClient({
-        apiKey,
-        baseURL: options.endpoint || process.env.TYPESAFE_ENDPOINT,
-        timeout: options.timeout || 15000
-      });
+  }
+
+  private async getClient() {
+    if (!this.clientInitAttempted) {
+      this.clientInitAttempted = true;
+      const apiKey = this.options.apiKey || process.env.TYPESAFE_API_KEY;
+      if (apiKey) {
+        const ClientClass = await getTypeSafeClientClass();
+        if (ClientClass) {
+          this.client = new ClientClass({
+            apiKey,
+            baseURL: this.options.endpoint || process.env.TYPESAFE_ENDPOINT,
+            timeout: this.options.timeout || 15000
+          });
+          this.battery = createBotGateBattery();
+        }
+      }
     }
+    return this.client;
   }
 
   async inspect(input: RequestInput, runtimeOptions: BotGateOptions = {}): Promise<BotGateDecision> {
@@ -50,14 +78,10 @@ export class BotGate {
       return this.createAllowedDecision('Client IP whitelisted', startTime);
     }
 
-    // Fast-path 3: Localhost pass-through if specifically requested
-    if (request.ip === '127.0.0.1' || request.ip === '::1') {
-      // unless there's an obvious injection, we let localhost pass if configured
-    }
-
     let assessment: AssessmentResult;
+    const client = await this.getClient();
 
-    if (this.client) {
+    if (client) {
       try {
         const state = {
           request: {
@@ -76,7 +100,7 @@ export class BotGate {
           }
         };
 
-        const response = await this.client.systemOne({
+        const response = await client.systemOne({
           model: opts.model || 'jev-latest',
           state: state as any,
           questions: this.battery as any
@@ -116,11 +140,9 @@ export class BotGate {
         if (opts.fallback === 'allow') {
           return this.createAllowedDecision('TypeSafe API unavailable (fallback: allow)', startTime);
         }
-        // Fallback to intelligent heuristic assessment
         assessment = heuristicAssessment(request, context);
       }
     } else {
-      // Offline / heuristic assessment
       assessment = heuristicAssessment(request, context);
     }
 

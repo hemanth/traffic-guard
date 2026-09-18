@@ -35,15 +35,18 @@
     "typesafe",
     "system-one",
     "traffic-gate",
+    "zero-dependency",
     "express-middleware"
   ],
   "author": "Hemanth HM <hemanth@h3manth.com> (https://h3manth.com)",
   "license": "MIT",
-  "dependencies": {
+  "dependencies": {},
+  "optionalDependencies": {
     "@typesafe-ai/sdk": "^0.6.0"
   },
   "devDependencies": {
     "@types/node": "^22.13.9",
+    "@typesafe-ai/sdk": "^0.6.0",
     "esbuild": "^0.25.0",
     "typescript": "^5.8.2"
   }
