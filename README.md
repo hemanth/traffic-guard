@@ -72,8 +72,9 @@ node bench/bench.mjs
 python3 bench/bench.py
 ```
 
-## Packages
+## Packages & Playground
 
+- [Interactive Playground (GitHub Pages)](https://hemanth.github.io/bot-gate/)
 - [Node.js Module (`node/`)](./node)
 - [Python Package (`python/`)](./python)
 
