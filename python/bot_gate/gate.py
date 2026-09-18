@@ -2,12 +2,20 @@
 
 from __future__ import annotations
 
+import asyncio
 import os
 import re
 import time
 from typing import Any, Callable, Pattern
 
 from .battery import AssessmentResult, create_bot_gate_battery, heuristic_assessment
+from .crypto import (
+    create_client_hash,
+    create_pow_challenge,
+    generate_challenge_html,
+    sign_bot_token,
+    verify_bot_token,
+)
 from .normalizer import normalize_request
 from .policy import BotGateDecision, GatePolicy, evaluate_decision, resolve_policy
 
@@ -43,8 +51,13 @@ class BotGate:
         allow_good_bots: bool = True,
         whitelisted_paths: list[str | Pattern] | None = None,
         whitelisted_ips: list[str] | None = None,
+        honeypot_paths: list[str] | None = None,
+        secret_key: str | None = None,
+        tarpit_ms: int = 3000,
+        enable_pow_challenge: bool = True,
         fallback: str = "heuristic",  # "heuristic" | "allow" | "block"
         on_block: Callable[[BotGateDecision, Any], Any] | None = None,
+        on_tarpit: Callable[[BotGateDecision, Any], Any] | None = None,
     ) -> None:
         self.policy = resolve_policy(policy)
         self.api_key = api_key or os.environ.get("TYPESAFE_API_KEY")
@@ -54,8 +67,13 @@ class BotGate:
         self.allow_good_bots = allow_good_bots
         self.whitelisted_paths = whitelisted_paths or []
         self.whitelisted_ips = whitelisted_ips or []
+        self.honeypot_paths = honeypot_paths or []
+        self.secret_key = secret_key or os.environ.get("BOTGATE_SECRET", "bot-gate-default-secret-key-32b!")
+        self.tarpit_ms = tarpit_ms
+        self.enable_pow_challenge = enable_pow_challenge
         self.fallback = fallback
         self.on_block = on_block
+        self.on_tarpit = on_tarpit
         self._battery = create_bot_gate_battery()
 
     def _is_whitelisted(self, path: str, ip: str | None) -> tuple[bool, str]:
@@ -82,10 +100,34 @@ class BotGate:
         if whitelisted:
             return self._allowed_decision(reason, start)
 
+        if self.honeypot_paths and req.path in self.honeypot_paths:
+            ctx.is_honeypot = True
+
+        # Stateless HMAC Token & Velocity Tracking (advanced defense pattern)
+        user_agent = req.headers.get("user-agent", "")
+        client_hash = create_client_hash(req.ip or "", user_agent)
+        raw_cookie = req.cookies.get("__botgate")
+        now = time.time()
+
+        cookie_payload = verify_bot_token(raw_cookie, self.secret_key) if raw_cookie else None
+
+        # If client previously verified a challenge and token is valid
+        if cookie_payload and cookie_payload.h == client_hash and cookie_payload.v and cookie_payload.v > now:
+            return self._allowed_decision("Client passed cryptographic verification", start)
+
+        # Velocity tracking in 10-second sliding window
+        current_count = 1
+        window_start = now
+        if cookie_payload and cookie_payload.h == client_hash:
+            if now - cookie_payload.ws < 10.0:
+                current_count = cookie_payload.c + 1
+                window_start = cookie_payload.ws
+        ctx.rate_count = current_count
+
         assessment: AssessmentResult
         AsyncClient, _ = _load_typesafe_sdk()
 
-        if self.api_key and AsyncClient is not None:
+        if self.api_key and AsyncClient is not None and not ctx.is_honeypot:
             try:
                 state = {
                     "request": {
@@ -101,6 +143,8 @@ class BotGate:
                         "suspicious_signatures": ctx.suspicious_signatures,
                         "claims_browser": ctx.claims_browser,
                         "is_known_search_bot": ctx.is_known_search_bot,
+                        "header_order_anomaly": ctx.header_order_anomaly,
+                        "rate_count": ctx.rate_count,
                     },
                 }
                 async with AsyncClient(
@@ -124,12 +168,27 @@ class BotGate:
             assessment = heuristic_assessment(req, ctx)
 
         duration = round((time.perf_counter() - start) * 1000, 2)
-        return evaluate_decision(
+        decision = evaluate_decision(
             assessment=assessment,
             policy=effective_policy,
             allow_good_bots=self.allow_good_bots,
             duration_ms=duration,
+            context=ctx,
         )
+
+        # Generate updated cookie token
+        updated_token = sign_bot_token(
+            {"h": client_hash, "c": current_count, "ws": window_start},
+            self.secret_key,
+        )
+        decision.set_cookie_header = f"__botgate={updated_token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=3600"
+
+        # If challenged, attach PoW HTML challenge
+        if decision.should_challenge:
+            seed, diff = create_pow_challenge(self.secret_key, 4)
+            decision.challenge_html = generate_challenge_html(seed, diff, req.url or "/")
+
+        return decision
 
     def inspect_sync(
         self,
@@ -145,10 +204,32 @@ class BotGate:
         if whitelisted:
             return self._allowed_decision(reason, start)
 
+        if self.honeypot_paths and req.path in self.honeypot_paths:
+            ctx.is_honeypot = True
+
+        # Stateless HMAC Token & Velocity Tracking (advanced defense pattern)
+        user_agent = req.headers.get("user-agent", "")
+        client_hash = create_client_hash(req.ip or "", user_agent)
+        raw_cookie = req.cookies.get("__botgate")
+        now = time.time()
+
+        cookie_payload = verify_bot_token(raw_cookie, self.secret_key) if raw_cookie else None
+
+        if cookie_payload and cookie_payload.h == client_hash and cookie_payload.v and cookie_payload.v > now:
+            return self._allowed_decision("Client passed cryptographic verification", start)
+
+        current_count = 1
+        window_start = now
+        if cookie_payload and cookie_payload.h == client_hash:
+            if now - cookie_payload.ws < 10.0:
+                current_count = cookie_payload.c + 1
+                window_start = cookie_payload.ws
+        ctx.rate_count = current_count
+
         assessment: AssessmentResult
         _, SyncClient = _load_typesafe_sdk()
 
-        if self.api_key and SyncClient is not None:
+        if self.api_key and SyncClient is not None and not ctx.is_honeypot:
             try:
                 state = {
                     "request": {
@@ -164,6 +245,8 @@ class BotGate:
                         "suspicious_signatures": ctx.suspicious_signatures,
                         "claims_browser": ctx.claims_browser,
                         "is_known_search_bot": ctx.is_known_search_bot,
+                        "header_order_anomaly": ctx.header_order_anomaly,
+                        "rate_count": ctx.rate_count,
                     },
                 }
                 with SyncClient(
@@ -187,12 +270,25 @@ class BotGate:
             assessment = heuristic_assessment(req, ctx)
 
         duration = round((time.perf_counter() - start) * 1000, 2)
-        return evaluate_decision(
+        decision = evaluate_decision(
             assessment=assessment,
             policy=effective_policy,
             allow_good_bots=self.allow_good_bots,
             duration_ms=duration,
+            context=ctx,
         )
+
+        updated_token = sign_bot_token(
+            {"h": client_hash, "c": current_count, "ws": window_start},
+            self.secret_key,
+        )
+        decision.set_cookie_header = f"__botgate={updated_token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=3600"
+
+        if decision.should_challenge:
+            seed, diff = create_pow_challenge(self.secret_key, 4)
+            decision.challenge_html = generate_challenge_html(seed, diff, req.url or "/")
+
+        return decision
 
     def _parse_response(self, resp: Any) -> AssessmentResult:
         answers = resp.answers
@@ -229,6 +325,7 @@ class BotGate:
             action="allow",
             should_block=False,
             should_challenge=False,
+            should_tarpit=False,
             is_bot=False,
             is_attack=False,
             category="human",
@@ -244,6 +341,7 @@ class BotGate:
             action="block",
             should_block=True,
             should_challenge=False,
+            should_tarpit=False,
             is_bot=True,
             is_attack=True,
             category="attack",

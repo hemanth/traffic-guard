@@ -4,7 +4,8 @@ import type {
   BotGateDecision,
   GatePolicy,
   PolicyName,
-  BotGateOptions
+  BotGateOptions,
+  RequestContext
 } from './types.js';
 
 export const DEFAULT_POLICIES: Record<PolicyName, GatePolicy> = {
@@ -14,7 +15,8 @@ export const DEFAULT_POLICIES: Record<PolicyName, GatePolicy> = {
     challengeThreshold: 0.50,
     riskBlock: 2.2,
     riskChallenge: 1.4,
-    spoofThreshold: 0.60
+    spoofThreshold: 0.60,
+    velocityBurstLimit: 40 // requests per 10s window
   },
   strict: {
     attackThreshold: 0.60,
@@ -22,7 +24,8 @@ export const DEFAULT_POLICIES: Record<PolicyName, GatePolicy> = {
     challengeThreshold: 0.35,
     riskBlock: 1.8,
     riskChallenge: 1.0,
-    spoofThreshold: 0.40
+    spoofThreshold: 0.40,
+    velocityBurstLimit: 20
   },
   permissive: {
     attackThreshold: 0.88,
@@ -30,7 +33,8 @@ export const DEFAULT_POLICIES: Record<PolicyName, GatePolicy> = {
     challengeThreshold: 0.70,
     riskBlock: 2.6,
     riskChallenge: 2.0,
-    spoofThreshold: 0.75
+    spoofThreshold: 0.75,
+    velocityBurstLimit: 80
   }
 };
 
@@ -51,10 +55,34 @@ export function evaluateDecision(
   assessment: AssessmentResult,
   policy: GatePolicy,
   options: BotGateOptions,
-  durationMs: number
+  durationMs: number,
+  context?: RequestContext
 ): BotGateDecision {
   const allowGoodBots = options.allowGoodBots !== false;
   const reasons: string[] = [];
+
+  // Honeypot trigger: immediate block
+  if (context?.isHoneypot) {
+    return {
+      action: 'block',
+      shouldBlock: true,
+      shouldChallenge: false,
+      shouldTarpit: false,
+      isBot: true,
+      isAttack: true,
+      category: 'attack',
+      riskScore: 3.0,
+      confidence: 1.0,
+      reasons: ['Visited canary honeypot URL trap intended for crawlers'],
+      assessment: {
+        ...assessment,
+        isAttackProbability: 1.0,
+        isBotProbability: 1.0,
+        riskScore: 3.0
+      },
+      durationMs
+    };
+  }
 
   // Check good bot exception
   if (allowGoodBots && assessment.trafficType === 'good_bot' && assessment.isAttackProbability < 0.4) {
@@ -62,6 +90,7 @@ export function evaluateDecision(
       action: 'allow',
       shouldBlock: false,
       shouldChallenge: false,
+      shouldTarpit: false,
       isBot: true,
       isAttack: false,
       category: 'good_bot',
@@ -92,12 +121,24 @@ export function evaluateDecision(
     reasons.push(`Elevated risk severity score (${assessment.riskScore.toFixed(2)} >= ${policy.riskChallenge})`);
   }
 
-  // 3. Bad bot evaluation
+  // 3. Velocity burst evaluation (advanced defense pattern)
+  if (context?.rateCount && context.rateCount > policy.velocityBurstLimit) {
+    if (action !== 'block') {
+      action = 'tarpit';
+      reasons.push(
+        `High request burst velocity (${context.rateCount} reqs in window > ${policy.velocityBurstLimit} limit)`
+      );
+    }
+  }
+
+  // 4. Bad bot evaluation
   if (assessment.isBotProbability >= policy.botThreshold && assessment.trafficType === 'bad_bot') {
-    action = 'block';
-    reasons.push(
-      `Unapproved automated bot/scraper detected (probability: ${Math.round(assessment.isBotProbability * 100)}%)`
-    );
+    if (action !== 'block') {
+      action = 'block';
+      reasons.push(
+        `Unapproved automated bot/scraper detected (probability: ${Math.round(assessment.isBotProbability * 100)}%)`
+      );
+    }
   } else if (assessment.isBotProbability >= policy.challengeThreshold && action === 'allow') {
     action = 'challenge';
     reasons.push(
@@ -105,7 +146,13 @@ export function evaluateDecision(
     );
   }
 
-  // 4. Header spoofing evaluation
+  // 5. Header spoofing & ordering anomaly evaluation (advanced defense pattern)
+  if (context?.headerOrderAnomaly) {
+    reasons.push('Abnormal HTTP header sequence inconsistent with declared browser');
+    if (action === 'allow') {
+      action = 'challenge';
+    }
+  }
   if (assessment.isSpoofedProbability >= policy.spoofThreshold && action === 'allow') {
     action = 'challenge';
     reasons.push(
@@ -119,6 +166,7 @@ export function evaluateDecision(
 
   const shouldBlock = action === 'block';
   const shouldChallenge = action === 'challenge';
+  const shouldTarpit = action === 'tarpit';
   const isBot = assessment.isBotProbability >= 0.5;
   const isAttack = assessment.isAttackProbability >= 0.5;
 
@@ -126,6 +174,7 @@ export function evaluateDecision(
     action,
     shouldBlock,
     shouldChallenge,
+    shouldTarpit,
     isBot,
     isAttack,
     category: assessment.trafficType,
@@ -134,8 +183,25 @@ export function evaluateDecision(
     reasons,
     assessment,
     durationMs,
-    respond(res: any): boolean {
+    async respond(res: any): Promise<boolean> {
       if (!res || typeof res.status !== 'function') return false;
+
+      if (shouldTarpit) {
+        if (options.onTarpit) {
+          options.onTarpit(decision, null, res);
+        } else {
+          const delay = options.tarpitMs || 3000;
+          await new Promise((r) => setTimeout(r, delay));
+          res.status(429).json({
+            error: 'Too Many Requests',
+            message: 'Request velocity exceeded threshold',
+            action: 'tarpit',
+            reasons: decision.reasons
+          });
+        }
+        return true;
+      }
+
       if (shouldBlock) {
         if (options.onBlock) {
           options.onBlock(decision, null, res);
@@ -148,9 +214,14 @@ export function evaluateDecision(
         }
         return true;
       }
+
       if (shouldChallenge) {
         if (options.onChallenge) {
           options.onChallenge(decision, null, res);
+        } else if (options.enablePoWChallenge !== false && decision.challengeHtml) {
+          res.status(428);
+          res.setHeader('Content-Type', 'text/html; charset=utf-8');
+          res.end(decision.challengeHtml);
         } else {
           res.status(428).json({
             error: 'Precondition Required',
@@ -160,6 +231,7 @@ export function evaluateDecision(
         }
         return true;
       }
+
       return false;
     }
   };

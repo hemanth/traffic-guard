@@ -43,9 +43,17 @@ botgate.middleware = (options?: BotGateOptions) => {
 botgate.BotGate = BotGate;
 
 export { BotGate };
-export { normalizeRequest } from './normalizer.js';
+export { normalizeRequest, checkHeaderOrderAnomaly } from './normalizer.js';
 export { DEFAULT_POLICIES, evaluateDecision, resolvePolicy } from './policy.js';
-export { createBotGateBattery, heuristicAssessment } from './battery.js';
+export { createBotGateBattery, heuristicAssessment, calculateShannonEntropy } from './battery.js';
+export {
+  signBotToken,
+  verifyBotToken,
+  createPoWChallenge,
+  verifyPoW,
+  generateChallengeHtml,
+  createClientHash
+} from './crypto.js';
 export type * from './types.js';
 
 export default botgate;

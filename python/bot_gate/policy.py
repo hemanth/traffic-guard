@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Callable
 from .battery import AssessmentResult
+from .normalizer import RequestContext
 
 
 @dataclass
@@ -15,6 +16,7 @@ class GatePolicy:
     risk_block: float = 2.2
     risk_challenge: float = 1.4
     spoof_threshold: float = 0.60
+    velocity_burst_limit: int = 40  # max requests per 10s window
 
 
 DEFAULT_POLICIES: dict[str, GatePolicy] = {
@@ -25,6 +27,7 @@ DEFAULT_POLICIES: dict[str, GatePolicy] = {
         risk_block=2.2,
         risk_challenge=1.4,
         spoof_threshold=0.60,
+        velocity_burst_limit=40,
     ),
     "strict": GatePolicy(
         attack_threshold=0.60,
@@ -33,6 +36,7 @@ DEFAULT_POLICIES: dict[str, GatePolicy] = {
         risk_block=1.8,
         risk_challenge=1.0,
         spoof_threshold=0.40,
+        velocity_burst_limit=20,
     ),
     "permissive": GatePolicy(
         attack_threshold=0.88,
@@ -41,15 +45,17 @@ DEFAULT_POLICIES: dict[str, GatePolicy] = {
         risk_block=2.6,
         risk_challenge=2.0,
         spoof_threshold=0.75,
+        velocity_burst_limit=80,
     ),
 }
 
 
 @dataclass
 class BotGateDecision:
-    action: str  # "allow" | "challenge" | "block" | "monitor"
+    action: str  # "allow" | "challenge" | "block" | "tarpit" | "monitor"
     should_block: bool
     should_challenge: bool
+    should_tarpit: bool
     is_bot: bool
     is_attack: bool
     category: str  # "human" | "good_bot" | "bad_bot" | "attack"
@@ -58,6 +64,8 @@ class BotGateDecision:
     reasons: list[str] = field(default_factory=list)
     assessment: AssessmentResult | None = None
     duration_ms: float = 0.0
+    set_cookie_header: str | None = None
+    challenge_html: str | None = None
 
 
 def resolve_policy(policy: str | GatePolicy | dict[str, Any] | None) -> GatePolicy:
@@ -74,6 +82,7 @@ def resolve_policy(policy: str | GatePolicy | dict[str, Any] | None) -> GatePoli
             risk_block=policy.get("risk_block", base.risk_block),
             risk_challenge=policy.get("risk_challenge", base.risk_challenge),
             spoof_threshold=policy.get("spoof_threshold", base.spoof_threshold),
+            velocity_burst_limit=policy.get("velocity_burst_limit", base.velocity_burst_limit),
         )
     return DEFAULT_POLICIES["balanced"]
 
@@ -83,8 +92,26 @@ def evaluate_decision(
     policy: GatePolicy,
     allow_good_bots: bool = True,
     duration_ms: float = 0.0,
+    context: RequestContext | None = None,
 ) -> BotGateDecision:
     reasons: list[str] = []
+
+    # Honeypot trigger: immediate block
+    if context and context.is_honeypot:
+        return BotGateDecision(
+            action="block",
+            should_block=True,
+            should_challenge=False,
+            should_tarpit=False,
+            is_bot=True,
+            is_attack=True,
+            category="attack",
+            risk_score=3.0,
+            confidence=1.0,
+            reasons=["Visited canary honeypot URL trap intended for crawlers"],
+            assessment=assessment,
+            duration_ms=duration_ms,
+        )
 
     # Verified good bots pass if allow_good_bots is true and no attack detected
     if allow_good_bots and assessment.traffic_type == "good_bot" and assessment.is_attack_probability < 0.4:
@@ -92,6 +119,7 @@ def evaluate_decision(
             action="allow",
             should_block=False,
             should_challenge=False,
+            should_tarpit=False,
             is_bot=True,
             is_attack=False,
             category="good_bot",
@@ -119,19 +147,33 @@ def evaluate_decision(
         action = "challenge"
         reasons.append(f"Elevated risk severity score ({assessment.risk_score:.2f} >= {policy.risk_challenge})")
 
-    # 3. Bad bot evaluation
+    # 3. Velocity burst evaluation (advanced defense pattern)
+    if context and context.rate_count and context.rate_count > policy.velocity_burst_limit:
+        if action != "block":
+            action = "tarpit"
+            reasons.append(
+                f"High request burst velocity ({context.rate_count} reqs in window > {policy.velocity_burst_limit} limit)"
+            )
+
+    # 4. Bad bot evaluation
     if assessment.is_bot_probability >= policy.bot_threshold and assessment.traffic_type == "bad_bot":
-        action = "block"
-        reasons.append(
-            f"Unapproved automated bot/scraper detected (probability: {int(assessment.is_bot_probability * 100)}%)"
-        )
+        if action != "block":
+            action = "block"
+            reasons.append(
+                f"Unapproved automated bot/scraper detected (probability: {int(assessment.is_bot_probability * 100)}%)"
+            )
     elif assessment.is_bot_probability >= policy.challenge_threshold and action == "allow":
         action = "challenge"
         reasons.append(
             f"Possible automated traffic requiring verification (probability: {int(assessment.is_bot_probability * 100)}%)"
         )
 
-    # 4. Header spoofing evaluation
+    # 5. Header spoofing & ordering anomaly evaluation (advanced defense pattern)
+    if context and context.header_order_anomaly:
+        reasons.append("Abnormal HTTP header sequence inconsistent with declared browser")
+        if action == "allow":
+            action = "challenge"
+
     if assessment.is_spoofed_probability >= policy.spoof_threshold and action == "allow":
         action = "challenge"
         reasons.append(
@@ -145,6 +187,7 @@ def evaluate_decision(
         action=action,
         should_block=(action == "block"),
         should_challenge=(action == "challenge"),
+        should_tarpit=(action == "tarpit"),
         is_bot=(assessment.is_bot_probability >= 0.5),
         is_attack=(assessment.is_attack_probability >= 0.5),
         category=assessment.traffic_type,

@@ -4,10 +4,19 @@ from __future__ import annotations
 
 from typing import Any
 
-from .battery import AssessmentResult, create_bot_gate_battery, heuristic_assessment
+from .battery import AssessmentResult, calculate_shannon_entropy, create_bot_gate_battery, heuristic_assessment
+from .crypto import (
+    create_client_hash,
+    create_pow_challenge,
+    generate_challenge_html,
+    parse_cookies,
+    sign_bot_token,
+    verify_bot_token,
+    verify_pow,
+)
 from .gate import BotGate
 from .middleware import BotGateMiddleware
-from .normalizer import NormalizedRequest, RequestContext, normalize_request
+from .normalizer import NormalizedRequest, RequestContext, check_header_order_anomaly, normalize_request
 from .policy import DEFAULT_POLICIES, BotGateDecision, GatePolicy, evaluate_decision, resolve_policy
 
 __version__ = "0.1.0"
@@ -54,7 +63,6 @@ def create(
     return BotGate(policy=policy, **options)
 
 
-# Attach methods directly to the callable module function
 botgate.inspect = inspect  # type: ignore[attr-defined]
 botgate.create = create  # type: ignore[attr-defined]
 botgate.BotGate = BotGate  # type: ignore[attr-defined]
@@ -74,4 +82,13 @@ __all__ = [
     "resolve_policy",
     "create_bot_gate_battery",
     "heuristic_assessment",
+    "calculate_shannon_entropy",
+    "check_header_order_anomaly",
+    "create_client_hash",
+    "sign_bot_token",
+    "verify_bot_token",
+    "create_pow_challenge",
+    "verify_pow",
+    "generate_challenge_html",
+    "parse_cookies",
 ]

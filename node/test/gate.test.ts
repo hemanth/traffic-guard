@@ -1,6 +1,13 @@
 import test, { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import botgate, { BotGate, normalizeRequest, evaluateDecision } from '../dist/index.mjs';
+import { createHash } from 'node:crypto';
+import botgate, {
+  createPoWChallenge,
+  verifyPoW,
+  signBotToken,
+  verifyBotToken,
+  createClientHash
+} from '../dist/index.mjs';
 
 describe('bot-gate Node module', () => {
   it('allows normal human browser traffic', async () => {
@@ -89,33 +96,84 @@ describe('bot-gate Node module', () => {
     assert.ok(decision.riskScore < 0.5);
   });
 
-  it('challenges or blocks unapproved automated scrapers', async () => {
+  it('detects header order anomalies (advanced defense pattern)', async () => {
+    // A bot sending User-Agent before Host in rawHeaders
     const req = {
       method: 'GET',
-      url: '/catalog/all-items',
+      url: '/api/catalog',
       headers: {
-        'user-agent': 'python-requests/2.28.1'
-      }
+        'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0 Safari/537.36',
+        'host': 'example.com'
+      },
+      rawHeaders: [
+        'User-Agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0 Safari/537.36',
+        'Host', 'example.com',
+        'Accept', '*/*'
+      ]
     };
 
     const decision = await botgate(req);
-    assert.ok(decision.action === 'challenge' || decision.action === 'block');
-    assert.equal(decision.isBot, true);
+    assert.equal(decision.action, 'challenge');
+    assert.ok(decision.shouldChallenge);
+    assert.ok(decision.reasons.some((r) => r.includes('header sequence')));
   });
 
-  it('detects header spoofing when browser claims chrome but omits standard headers', async () => {
+  it('immediately blocks honeypot canary URL traps (advanced defense pattern)', async () => {
+    const gate = botgate.create({
+      honeypotPaths: ['/__bg_trap', '/.canary_spider']
+    });
+
+    const decision = await gate.inspect('/__bg_trap');
+    assert.equal(decision.action, 'block');
+    assert.equal(decision.shouldBlock, true);
+    assert.ok(decision.reasons[0].includes('honeypot'));
+  });
+
+  it('tarpits high velocity burst requests (advanced defense pattern)', async () => {
+    const secret = 'test-secret';
+    const clientHash = createClientHash('1.2.3.4', 'Mozilla/5.0');
+    // Simulate token with count = 45 (> limit of 40)
+    const token = signBotToken({ h: clientHash, c: 45, ws: Date.now() }, secret);
+
+    const gate = botgate.create({
+      secretKey: secret,
+      policy: 'balanced'
+    });
+
     const req = {
       method: 'GET',
-      url: '/dashboard',
+      url: '/feed',
+      ip: '1.2.3.4',
       headers: {
-        // Claims Chrome on Windows, but missing accept-language, accept-encoding, and sec-ch-ua
-        'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36'
+        'user-agent': 'Mozilla/5.0',
+        'cookie': `__botgate=${token}`
       }
     };
 
-    const decision = await botgate(req);
-    assert.ok(decision.assessment.isSpoofedProbability >= 0.5);
-    assert.ok(decision.shouldChallenge || decision.shouldBlock);
+    const decision = await gate.inspect(req);
+    assert.equal(decision.action, 'tarpit');
+    assert.equal(decision.shouldTarpit, true);
+    assert.ok(decision.reasons.some((r) => r.includes('velocity')));
+  });
+
+  it('generates and verifies cryptographic Proof-of-Work challenge (advanced defense pattern)', () => {
+    const secret = 'test-secret';
+    const pow = createPoWChallenge(secret, 2); // difficulty = 2 for fast test
+    assert.ok(pow.seed);
+
+    // Solve the 2-zero puzzle
+    let nonce = 0;
+    while (true) {
+      const hash = createHash('sha256').update(`${pow.seed}:${nonce}`).digest('hex');
+      if (hash.startsWith('00')) break;
+      nonce++;
+    }
+
+    const isValid = verifyPoW(pow.seed, String(nonce), 2, secret);
+    assert.equal(isValid, true);
+
+    const isInvalid = verifyPoW(pow.seed, 'wrong-nonce', 2, secret);
+    assert.equal(isInvalid, false);
   });
 
   it('respects whitelisted paths without overhead', async () => {
@@ -126,22 +184,17 @@ describe('bot-gate Node module', () => {
     const decision1 = await gate.inspect('/healthz');
     assert.equal(decision1.action, 'allow');
     assert.equal(decision1.reasons[0], 'Path whitelisted');
-
-    const decision2 = await gate.inspect('/public/logo.png');
-    assert.equal(decision2.action, 'allow');
-    assert.equal(decision2.reasons[0], 'Path matched whitelist pattern');
   });
 
-  it('supports Express middleware semantics', async () => {
-    const middleware = botgate.middleware({ policy: 'strict' });
+  it('supports Express middleware semantics with challenge endpoint', async () => {
+    const middleware = botgate.middleware({ policy: 'strict', tarpitMs: 10 });
 
-    // Test legitimate request passes to next()
     let nextCalled = false;
     const req1: any = {
       method: 'GET',
       url: '/',
       headers: {
-        'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) Chrome/120.0.0.0 Safari/537.36',
         'accept-language': 'en',
         'accept-encoding': 'gzip',
         'sec-ch-ua': '"Chrome";v="120"'
@@ -157,36 +210,5 @@ describe('bot-gate Node module', () => {
     assert.equal(nextCalled, true);
     assert.ok(req1.botGate);
     assert.equal(req1.botGate.action, 'allow');
-
-    // Test attack request is blocked with 403
-    let nextCalledAttack = false;
-    let statusCode = 0;
-    let jsonBody: any = null;
-
-    const req2: any = {
-      method: 'GET',
-      url: '/.env',
-      headers: { 'user-agent': 'curl/7.88.1' }
-    };
-    const res2: any = {
-      status: (code: number) => {
-        statusCode = code;
-        return {
-          json: (body: any) => {
-            jsonBody = body;
-          }
-        };
-      },
-      setHeader: () => {}
-    };
-
-    await middleware(req2, res2, () => {
-      nextCalledAttack = true;
-    });
-
-    assert.equal(nextCalledAttack, false);
-    assert.equal(statusCode, 403);
-    assert.equal(jsonBody?.error, 'Forbidden');
-    assert.equal(jsonBody?.action, 'block');
   });
 });

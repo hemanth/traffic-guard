@@ -1,4 +1,13 @@
 import { createBotGateBattery, heuristicAssessment, loadTypeSafePrimitives } from './battery.js';
+import {
+  createClientHash,
+  createPoWChallenge,
+  generateChallengeHtml,
+  signBotToken,
+  verifyBotToken,
+  verifyPoW,
+  type BotCookiePayload
+} from './crypto.js';
 import { normalizeRequest } from './normalizer.js';
 import { evaluateDecision, resolvePolicy } from './policy.js';
 import type {
@@ -78,10 +87,44 @@ export class BotGate {
       return this.createAllowedDecision('Client IP whitelisted', startTime);
     }
 
+    // Fast-path 3: Canary honeypot traps (advanced defense pattern)
+    if (opts.honeypotPaths && opts.honeypotPaths.includes(request.path)) {
+      context.isHoneypot = true;
+    }
+
+    // Fast-path 4: Stateless HMAC Cookie & Velocity Tracking (advanced defense pattern)
+    const secret = opts.secretKey || process.env.BOTGATE_SECRET || 'bot-gate-default-secret-key-32b!';
+    const userAgent = request.headers['user-agent'] || '';
+    const clientHash = createClientHash(request.ip, userAgent);
+    const rawCookie = request.cookies?.['__botgate'];
+    const now = Date.now();
+
+    let cookiePayload: BotCookiePayload | null = null;
+    if (rawCookie) {
+      cookiePayload = verifyBotToken(rawCookie, secret);
+    }
+
+    // Check if client previously verified a challenge and token is valid
+    if (cookiePayload && cookiePayload.h === clientHash && cookiePayload.v && cookiePayload.v > now) {
+      // Verified human pass
+      return this.createAllowedDecision('Client passed cryptographic verification', startTime);
+    }
+
+    // Track request velocity in 10-second sliding window
+    let currentCount = 1;
+    let windowStart = now;
+    if (cookiePayload && cookiePayload.h === clientHash) {
+      if (now - cookiePayload.ws < 10_000) {
+        currentCount = cookiePayload.c + 1;
+        windowStart = cookiePayload.ws;
+      }
+    }
+    context.rateCount = currentCount;
+
     let assessment: AssessmentResult;
     const client = await this.getClient();
 
-    if (client) {
+    if (client && !context.isHoneypot) {
       try {
         const state = {
           request: {
@@ -96,7 +139,10 @@ export class BotGate {
             missing_browser_headers: context.missingBrowserHeaders,
             suspicious_signatures: context.suspiciousSignatures,
             claims_browser: context.claimsBrowser,
-            is_known_search_bot: context.isKnownSearchBot
+            is_known_search_bot: context.isKnownSearchBot,
+            header_order_anomaly: context.headerOrderAnomaly,
+            shannon_entropy: context.shannonEntropy,
+            rate_count: context.rateCount
           }
         };
 
@@ -147,16 +193,74 @@ export class BotGate {
     }
 
     const durationMs = Math.round((performance.now() - startTime) * 100) / 100;
-    return evaluateDecision(assessment, policy, opts, durationMs);
+    const decision = evaluateDecision(assessment, policy, opts, durationMs, context);
+
+    // Prepare updated stateless cookie
+    const updatedPayload: BotCookiePayload = {
+      h: clientHash,
+      c: currentCount,
+      ws: windowStart
+    };
+    const newToken = signBotToken(updatedPayload, secret);
+    decision.setCookieHeader = `__botgate=${newToken}; Path=/; HttpOnly; SameSite=Lax; Max-Age=3600`;
+
+    // If challenged, attach PoW challenge payload
+    if (decision.shouldChallenge) {
+      const pow = createPoWChallenge(secret, 4);
+      decision.challengeHtml = generateChallengeHtml(pow.seed, pow.difficulty, request.url || '/');
+    }
+
+    return decision;
   }
 
   middleware(middlewareOptions: BotGateOptions = {}) {
     const opts = { ...this.options, ...middlewareOptions };
+    const secret = opts.secretKey || process.env.BOTGATE_SECRET || 'bot-gate-default-secret-key-32b!';
 
     return async (req: any, res: any, next: (err?: any) => void) => {
       try {
+        // Handle PoW Challenge verification endpoint
+        if (req.method === 'POST' && (req.url === '/__botgate/verify' || req.path === '/__botgate/verify')) {
+          let body = req.body;
+          if (typeof body === 'string') {
+            try { body = JSON.parse(body); } catch {}
+          }
+          const { seed, nonce, isAutomated, returnUrl } = body || {};
+          const isValid = !isAutomated && verifyPoW(seed, nonce, 1, secret);
+
+          if (isValid) {
+            const userAgent = req.headers['user-agent'] || '';
+            const ip = req.ip || req.socket?.remoteAddress || '';
+            const clientHash = createClientHash(ip, userAgent);
+            // Grant 30 minutes verification
+            const token = signBotToken({ h: clientHash, c: 1, ws: Date.now(), v: Date.now() + 1800_000 }, secret);
+            res.setHeader('Set-Cookie', `__botgate=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=1800`);
+            return res.status(200).json({ status: 'ok', redirect: returnUrl || '/' });
+          } else {
+            return res.status(403).json({ error: 'Verification failed' });
+          }
+        }
+
         const decision = await this.inspect(req, opts);
         req.botGate = decision;
+
+        if (decision.setCookieHeader) {
+          res.setHeader('Set-Cookie', decision.setCookieHeader);
+        }
+
+        if (decision.shouldTarpit) {
+          if (opts.onTarpit) {
+            return opts.onTarpit(decision, req, res);
+          }
+          const delay = opts.tarpitMs || 3000;
+          await new Promise((r) => setTimeout(r, delay));
+          return res.status(429).json({
+            error: 'Too Many Requests',
+            message: 'Velocity exceeded threshold',
+            action: decision.action,
+            reasons: decision.reasons
+          });
+        }
 
         if (decision.shouldBlock) {
           if (opts.onBlock) {
@@ -175,6 +279,11 @@ export class BotGate {
         if (decision.shouldChallenge) {
           if (opts.onChallenge) {
             return opts.onChallenge(decision, req, res);
+          }
+          if (opts.enablePoWChallenge !== false && decision.challengeHtml) {
+            res.status(428);
+            res.setHeader('Content-Type', 'text/html; charset=utf-8');
+            return res.end(decision.challengeHtml);
           }
           res.setHeader('X-BotGate-Action', 'challenge');
           res.setHeader('X-BotGate-Risk', decision.riskScore.toString());
@@ -195,6 +304,7 @@ export class BotGate {
       action: 'allow',
       shouldBlock: false,
       shouldChallenge: false,
+      shouldTarpit: false,
       isBot: false,
       isAttack: false,
       category: 'human',
@@ -223,6 +333,7 @@ export class BotGate {
       action: 'block',
       shouldBlock: true,
       shouldChallenge: false,
+      shouldTarpit: false,
       isBot: true,
       isAttack: true,
       category: 'attack',

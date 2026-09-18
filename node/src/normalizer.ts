@@ -1,3 +1,5 @@
+import { calculateShannonEntropy } from './battery.js';
+import { parseCookies } from './crypto.js';
 import type { NormalizedRequest, RequestContext, RequestInput } from './types.js';
 
 const KNOWN_GOOD_BOTS = [
@@ -35,6 +37,37 @@ const KNOWN_ATTACK_TOOLS = [
   'havij'
 ];
 
+export function checkHeaderOrderAnomaly(rawHeaders: string[] | undefined, userAgent: string): boolean {
+  if (!rawHeaders || rawHeaders.length < 6) return false;
+
+  const order: string[] = [];
+  for (let i = 0; i < rawHeaders.length; i += 2) {
+    order.push(rawHeaders[i].toLowerCase());
+  }
+
+  const ua = userAgent.toLowerCase();
+  const claimsChromium = ua.includes('chrome/') || ua.includes('edg/');
+  const hostIdx = order.indexOf('host');
+  const uaIdx = order.indexOf('user-agent');
+  const secChUaIdx = order.indexOf('sec-ch-ua');
+
+  // Anomaly 1: User-Agent sent BEFORE Host (common in scripts like python-requests or manual curl)
+  if (uaIdx !== -1 && hostIdx !== -1 && uaIdx < hostIdx) {
+    return true;
+  }
+
+  // Anomaly 2: Claims Chromium, but sec-ch-ua is placed at the end after accept-encoding/language
+  if (claimsChromium && secChUaIdx !== -1 && uaIdx !== -1) {
+    // In real Chromium, sec-ch-ua precedes or immediately neighbors User-Agent
+    const acceptEncIdx = order.indexOf('accept-encoding');
+    if (acceptEncIdx !== -1 && secChUaIdx > acceptEncIdx + 2) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 export function normalizeRequest(input: RequestInput): {
   request: NormalizedRequest;
   context: RequestContext;
@@ -43,8 +76,10 @@ export function normalizeRequest(input: RequestInput): {
   let path = '/';
   let query: Record<string, string | string[]> = {};
   const headers: Record<string, string> = {};
+  let rawHeaders: string[] | undefined;
   let body: string | Record<string, unknown> | null = null;
   let ip: string | undefined;
+  let cookies: Record<string, string> = {};
 
   if (typeof input === 'string') {
     try {
@@ -85,8 +120,10 @@ export function normalizeRequest(input: RequestInput): {
       }
     }
 
+    rawHeaders = raw.rawHeaders;
     body = raw.body ?? null;
     ip = raw.ip || raw.socket?.remoteAddress || headers['x-forwarded-for']?.split(',')[0]?.trim();
+    cookies = raw.cookies || parseCookies(headers['cookie']);
   }
 
   const userAgent = (headers['user-agent'] || '').toLowerCase();
@@ -116,21 +153,29 @@ export function normalizeRequest(input: RequestInput): {
     }
   }
 
+  const headerOrderAnomaly = checkHeaderOrderAnomaly(rawHeaders, userAgent);
+  const targetForEntropy = path + ' ' + JSON.stringify(query);
+  const shannonEntropy = calculateShannonEntropy(targetForEntropy);
+
   const normalized: NormalizedRequest = {
     method,
     path,
     query,
     headers,
+    rawHeaders,
     body,
     ip,
-    url: path
+    url: path,
+    cookies
   };
 
   const context: RequestContext = {
     missingBrowserHeaders,
     suspiciousSignatures,
     claimsBrowser,
-    isKnownSearchBot
+    isKnownSearchBot,
+    headerOrderAnomaly,
+    shannonEntropy
   };
 
   return { request: normalized, context };

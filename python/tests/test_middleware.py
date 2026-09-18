@@ -1,16 +1,20 @@
-"""Tests for FastAPI / Starlette ASGI middleware."""
+"""Tests for FastAPI / Starlette ASGI middleware with advanced defense patterns."""
 
+import hashlib
 import pytest
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 
-from bot_gate import BotGateMiddleware
+from bot_gate import BotGateMiddleware, create_pow_challenge
 
 app = FastAPI()
 app.add_middleware(
     BotGateMiddleware,
     policy="strict",
     whitelisted_paths=["/healthz"],
+    honeypot_paths=["/__bg_trap"],
+    secret_key="test-secret-key",
+    tarpit_ms=10,
 )
 
 
@@ -43,6 +47,40 @@ async def test_middleware_blocks_attack():
         data = resp.json()
         assert data["error"] == "Forbidden"
         assert data["action"] == "block"
+
+
+@pytest.mark.asyncio
+async def test_middleware_blocks_honeypot():
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        resp = await client.get("/__bg_trap")
+        assert resp.status_code == 403
+        data = resp.json()
+        assert "honeypot" in data["reasons"][0]
+
+
+@pytest.mark.asyncio
+async def test_middleware_pow_verify_endpoint():
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        seed, diff = create_pow_challenge("test-secret-key", 2)
+        nonce = 0
+        while True:
+            h = hashlib.sha256(f"{seed}:{nonce}".encode("utf-8")).hexdigest()
+            if h.startswith("00"):
+                break
+            nonce += 1
+
+        resp = await client.post(
+            "/__botgate/verify",
+            json={
+                "seed": seed,
+                "nonce": str(nonce),
+                "isAutomated": False,
+                "returnUrl": "/api/data",
+            },
+        )
+        assert resp.status_code == 200
+        assert "set-cookie" in resp.headers
+        assert "__botgate=" in resp.headers["set-cookie"]
 
 
 @pytest.mark.asyncio

@@ -1,7 +1,15 @@
 """Unit and integration tests for bot-gate Python package."""
 
+import hashlib
 import pytest
-from bot_gate import botgate, BotGate
+from bot_gate import (
+    BotGate,
+    botgate,
+    create_client_hash,
+    create_pow_challenge,
+    sign_bot_token,
+    verify_pow,
+)
 
 
 @pytest.mark.asyncio
@@ -90,19 +98,79 @@ async def test_allows_good_bots():
 
 
 @pytest.mark.asyncio
-async def test_detects_spoofed_headers():
+async def test_detects_header_order_anomaly():
     req = {
         "method": "GET",
-        "url": "/dashboard",
+        "url": "/api/catalog",
         "headers": {
-            "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36"
+            "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0 Safari/537.36",
+            "host": "example.com",
+            "accept": "*/*",
+            "accept-language": "en",
+            "accept-encoding": "gzip",
+            "sec-ch-ua": '"Chrome";v="120"',
         },
+        "raw_headers": [
+            "User-Agent",
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0 Safari/537.36",
+            "Host",
+            "example.com",
+        ],
     }
 
     decision = await botgate(req)
-    assert decision.assessment is not None
-    assert decision.assessment.is_spoofed_probability >= 0.5
-    assert decision.should_challenge or decision.should_block
+    assert decision.action == "challenge"
+    assert decision.should_challenge is True
+    assert any("header sequence" in r for r in decision.reasons)
+
+
+@pytest.mark.asyncio
+async def test_immediately_blocks_honeypots():
+    gate = BotGate(honeypot_paths=["/__bg_trap"])
+    decision = await gate.inspect("/__bg_trap")
+    assert decision.action == "block"
+    assert decision.should_block is True
+    assert "honeypot" in decision.reasons[0]
+
+
+@pytest.mark.asyncio
+async def test_tarpits_velocity_burst():
+    secret = "test-secret"
+    client_hash = create_client_hash("1.2.3.4", "Mozilla/5.0")
+    import time
+    token = sign_bot_token({"h": client_hash, "c": 45, "ws": time.time()}, secret)
+
+    gate = BotGate(secret_key=secret, policy="balanced")
+    req = {
+        "method": "GET",
+        "url": "/feed",
+        "ip": "1.2.3.4",
+        "headers": {
+            "user-agent": "Mozilla/5.0",
+            "cookie": f"__botgate={token}",
+        },
+    }
+
+    decision = await gate.inspect(req)
+    assert decision.action == "tarpit"
+    assert decision.should_tarpit is True
+    assert any("velocity" in r for r in decision.reasons)
+
+
+def test_pow_challenge():
+    secret = "test-secret"
+    seed, diff = create_pow_challenge(secret, 2)
+    assert seed
+
+    nonce = 0
+    while True:
+        h = hashlib.sha256(f"{seed}:{nonce}".encode("utf-8")).hexdigest()
+        if h.startswith("00"):
+            break
+        nonce += 1
+
+    assert verify_pow(seed, str(nonce), 2, secret) is True
+    assert verify_pow(seed, "wrong", 2, secret) is False
 
 
 def test_sync_inspect():
