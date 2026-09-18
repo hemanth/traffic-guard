@@ -1576,11 +1576,33 @@
     // --------------------------------------------------------------------------
     // IN-BROWSER ZERO-DEP DETECTION ENGINE (Client-side port of node/src/...)
     // --------------------------------------------------------------------------
+    function safeDecode(str) {
+      if (!str) return '';
+      try {
+        return decodeURIComponent(str.replace(/\+/g, ' '));
+      } catch {
+        try {
+          return unescape(str);
+        } catch {
+          return str;
+        }
+      }
+    }
+
     const SQLI_PATTERNS = [
       /(\b(union(\s+all)?|select|insert|update|delete|drop|alter|create|truncate)\b.+?\b(from|into|table|database|where)\b)/i,
       /(\b(exec(\s+xp_cmdshell)?|sp_executesql)\b)/i,
       /((\%27)|(')|(--)|(\%23)|(#)).*?((\b(or|and)\b.*=)|(\bor\b\s+['\d]+\s*=\s*['\d]+))/i,
-      /\b(sleep|benchmark|waitfor\s+delay)\s*\(/i
+      /\b(sleep|benchmark|waitfor\s+delay)\s*\(/i,
+      /(\bunion\s+(all\s+)?select\b)/i,
+      /('\s*or\s+['\d\w]+\s*=\s*['\d\w]+)/i,
+      /(--\s*$|;\s*--)/i
+    ];
+
+    const SQLI_SIGNATURES = [
+      "' or 1=1", '" or 1=1', 'union select', 'union all select',
+      'sleep(', 'benchmark(', 'information_schema', 'select sleep',
+      'or 1=1', "' or '1'='1", "admin'--", "' union", "union select"
     ];
 
     const XSS_PATTERNS = [
@@ -1645,7 +1667,9 @@
       });
 
       const userAgent = headers['user-agent'] || '';
-      const fullTarget = `${path} ${rawHeadersStr}`.toLowerCase();
+      const decodedPath = safeDecode(path);
+      const decodedHeaders = safeDecode(rawHeadersStr);
+      const fullTarget = `${path} ${rawHeadersStr} ${decodedPath} ${decodedHeaders}`.toLowerCase();
 
       // Signals Collector
       const reasons = [];
@@ -1659,7 +1683,7 @@
       let shouldTarpit = false;
 
       // 1. Honeypot check
-      if (isHoneypot || path === '/__bg_trap') {
+      if (isHoneypot || path === '/__bg_trap' || decodedPath === '/__bg_trap') {
         action = 'block';
         reasons.push('Triggered canary honeypot URL trap');
         riskScore = 1.0;
@@ -1672,7 +1696,7 @@
       let attackType = 'none';
 
       for (const p of RCE_PATTERNS) {
-        if (p.test(fullTarget)) {
+        if (p.test(fullTarget) || p.test(decodedPath)) {
           isAttack = true; attackType = 'rce';
           reasons.push('Remote Code Execution (RCE/Log4Shell) pattern matched');
           break;
@@ -1680,7 +1704,7 @@
       }
       if (!isAttack) {
         for (const p of SQLI_PATTERNS) {
-          if (p.test(fullTarget)) {
+          if (p.test(fullTarget) || p.test(decodedPath)) {
             isAttack = true; attackType = 'sqli';
             reasons.push('SQL injection signature detected in path or headers');
             break;
@@ -1688,8 +1712,14 @@
         }
       }
       if (!isAttack) {
+        if (SQLI_SIGNATURES.some(sig => fullTarget.includes(sig) || decodedPath.toLowerCase().includes(sig))) {
+          isAttack = true; attackType = 'sqli';
+          reasons.push('SQL injection signature detected in path or headers');
+        }
+      }
+      if (!isAttack) {
         for (const p of PATH_TRAVERSAL_PATTERNS) {
-          if (p.test(fullTarget)) {
+          if (p.test(fullTarget) || p.test(decodedPath)) {
             isAttack = true; attackType = 'probe';
             reasons.push('Path traversal or sensitive file probe (/.env, /passwd)');
             break;
@@ -1698,7 +1728,7 @@
       }
       if (!isAttack) {
         for (const p of XSS_PATTERNS) {
-          if (p.test(fullTarget)) {
+          if (p.test(fullTarget) || p.test(decodedPath)) {
             isAttack = true; attackType = 'xss';
             reasons.push('Cross-Site Scripting (XSS) payload detected');
             break;

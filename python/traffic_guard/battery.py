@@ -112,6 +112,11 @@ def heuristic_assessment(
 ) -> AssessmentResult:
     user_agent = request.headers.get("user-agent", "").lower()
     path = request.path.lower()
+    try:
+        import urllib.parse
+        decoded_path = urllib.parse.unquote_plus(path).lower()
+    except Exception:
+        decoded_path = path
     query_str = json.dumps(request.query).lower()
     body_str = (
         request.body.lower()
@@ -119,7 +124,7 @@ def heuristic_assessment(
         else json.dumps(request.body or "").lower()
     )
     headers_str = json.dumps(request.headers).lower()
-    full_target = f"{path} {query_str} {body_str} {headers_str}"
+    full_target = f"{path} {decoded_path} {query_str} {body_str} {headers_str}"
 
     bot_score = 0.05
     attack_score = 0.02

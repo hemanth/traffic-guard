@@ -108,7 +108,13 @@ export function heuristicAssessment(
   const queryStr = JSON.stringify(request.query).toLowerCase();
   const bodyStr = typeof request.body === 'string' ? request.body.toLowerCase() : JSON.stringify(request.body || '').toLowerCase();
   const headersStr = JSON.stringify(request.headers).toLowerCase();
-  const fullTarget = `${path} ${queryStr} ${bodyStr} ${headersStr}`;
+  let decodedPath = path;
+  try {
+    decodedPath = decodeURIComponent(path.replace(/\+/g, ' ')).toLowerCase();
+  } catch {
+    // fallback
+  }
+  const fullTarget = `${path} ${decodedPath} ${queryStr} ${bodyStr} ${headersStr}`;
 
   let botScore = 0.05;
   let attackScore = 0.02;

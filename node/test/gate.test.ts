@@ -51,6 +51,23 @@ describe('traffic-guard Node module', () => {
     assert.ok(decision.reasons.some((r) => r.toLowerCase().includes('attack')));
   });
 
+  it('blocks URL-encoded SQL injection attack payload in path', async () => {
+    const req = {
+      method: 'GET',
+      url: '/products?id=1%27%20UNION%20SELECT%20username,password%20FROM%20users--',
+      headers: {
+        'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'
+      }
+    };
+
+    const decision = await botgate(req);
+    assert.equal(decision.action, 'block');
+    assert.equal(decision.shouldBlock, true);
+    assert.equal(decision.isAttack, true);
+    assert.ok(decision.riskScore >= 2.0);
+    assert.ok(decision.reasons.some((r) => r.toLowerCase().includes('attack')));
+  });
+
   it('blocks known penetration testing tools (sqlmap)', async () => {
     const req = {
       method: 'GET',
