@@ -1,4 +1,4 @@
-"""Incoming web request normalization for bot-gate."""
+"""Incoming web request normalization for traffic-guard."""
 
 from __future__ import annotations
 

@@ -1,48 +1,54 @@
-import { BotGate } from './gate.js';
-import type { BotGateDecision, BotGateOptions, RequestInput } from './types.js';
+import { BotGate, TrafficGuard } from './gate.js';
+import type { BotGateDecision, BotGateOptions, RequestInput, TrafficDecision, TrafficGuardOptions } from './types.js';
 
-let defaultGate: BotGate | null = null;
+let defaultGuard: TrafficGuard | null = null;
 
-function getDefaultGate(): BotGate {
-  if (!defaultGate) {
-    defaultGate = new BotGate();
+function getDefaultGuard(): TrafficGuard {
+  if (!defaultGuard) {
+    defaultGuard = new TrafficGuard();
   }
-  return defaultGate;
+  return defaultGuard;
 }
 
 /**
- * Inspects an incoming request and returns a bot/attack detection decision.
+ * Inspects an incoming request and returns a bot/attack defense decision in under 30 µs.
  *
  * @example
  * ```ts
- * const gate = await botgate(req);
- * if (gate.shouldBlock) {
- *   return res.status(403).send('Forbidden');
+ * import trafficguard from 'traffic-guard';
+ *
+ * const decision = await trafficguard(req);
+ * if (decision.shouldBlock) {
+ *   return res.status(403).json({ error: 'Forbidden', reasons: decision.reasons });
  * }
  * ```
  */
-async function botgate(input: RequestInput, options?: BotGateOptions): Promise<BotGateDecision> {
+async function trafficguard(input: RequestInput, options?: TrafficGuardOptions): Promise<TrafficDecision> {
   if (options) {
-    const gate = new BotGate(options);
-    return gate.inspect(input);
+    const guard = new TrafficGuard(options);
+    return guard.inspect(input);
   }
-  return getDefaultGate().inspect(input);
+  return getDefaultGuard().inspect(input);
 }
 
-botgate.create = (options?: BotGateOptions) => new BotGate(options);
+trafficguard.create = (options?: TrafficGuardOptions) => new TrafficGuard(options);
 
-botgate.inspect = (input: RequestInput, options?: BotGateOptions) => {
-  return botgate(input, options);
+trafficguard.inspect = (input: RequestInput, options?: TrafficGuardOptions) => {
+  return trafficguard(input, options);
 };
 
-botgate.middleware = (options?: BotGateOptions) => {
-  const gate = options ? new BotGate(options) : getDefaultGate();
-  return gate.middleware(options);
+trafficguard.middleware = (options?: TrafficGuardOptions) => {
+  const guard = options ? new TrafficGuard(options) : getDefaultGuard();
+  return guard.middleware(options);
 };
 
-botgate.BotGate = BotGate;
+trafficguard.TrafficGuard = TrafficGuard;
+trafficguard.BotGate = BotGate;
 
-export { BotGate };
+const botgate = trafficguard;
+const trafficGuard = trafficguard;
+
+export { TrafficGuard, BotGate, trafficguard, trafficGuard, botgate };
 export { normalizeRequest, checkHeaderOrderAnomaly } from './normalizer.js';
 export { DEFAULT_POLICIES, evaluateDecision, resolvePolicy } from './policy.js';
 export { createBotGateBattery, heuristicAssessment, calculateShannonEntropy } from './battery.js';
@@ -56,4 +62,4 @@ export {
 } from './crypto.js';
 export type * from './types.js';
 
-export default botgate;
+export default trafficguard;

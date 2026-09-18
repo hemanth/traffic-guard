@@ -5,7 +5,7 @@ import pytest
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 
-from bot_gate import BotGateMiddleware, create_pow_challenge
+from traffic_guard import BotGateMiddleware, TrafficGuardMiddleware, create_pow_challenge
 
 app = FastAPI()
 app.add_middleware(

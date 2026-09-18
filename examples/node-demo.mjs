@@ -1,18 +1,18 @@
 import http from 'node:http';
-import botgate from '../node/dist/index.mjs';
+import trafficguard from '../node/dist/index.mjs';
 
-const gate = botgate.create({
+const guard = trafficguard.create({
   policy: 'balanced',
   allowGoodBots: true,
   whitelistedPaths: ['/healthz', '/favicon.ico']
 });
 
 const server = http.createServer(async (req, res) => {
-  const decision = await gate.inspect(req);
+  const decision = await guard.inspect(req);
 
   res.setHeader('Content-Type', 'application/json');
-  res.setHeader('X-BotGate-Action', decision.action);
-  res.setHeader('X-BotGate-Risk', decision.riskScore.toString());
+  res.setHeader('X-TrafficGuard-Action', decision.action);
+  res.setHeader('X-TrafficGuard-Risk', decision.riskScore.toString());
 
   if (decision.shouldBlock) {
     res.statusCode = 403;

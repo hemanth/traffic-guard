@@ -93,10 +93,10 @@ export class BotGate {
     }
 
     // Fast-path 4: Stateless HMAC Cookie & Velocity Tracking (advanced defense pattern)
-    const secret = opts.secretKey || process.env.BOTGATE_SECRET || 'bot-gate-default-secret-key-32b!';
+    const secret = opts.secretKey || process.env.TRAFFICGUARD_SECRET || process.env.BOTGATE_SECRET || 'traffic-guard-default-secret-key-32b!';
     const userAgent = request.headers['user-agent'] || '';
     const clientHash = createClientHash(request.ip, userAgent);
-    const rawCookie = request.cookies?.['__botgate'];
+    const rawCookie = request.cookies?.['__trafficguard'] || request.cookies?.['__botgate'];
     const now = Date.now();
 
     let cookiePayload: BotCookiePayload | null = null;
@@ -202,7 +202,7 @@ export class BotGate {
       ws: windowStart
     };
     const newToken = signBotToken(updatedPayload, secret);
-    decision.setCookieHeader = `__botgate=${newToken}; Path=/; HttpOnly; SameSite=Lax; Max-Age=3600`;
+    decision.setCookieHeader = `__trafficguard=${newToken}; Path=/; HttpOnly; SameSite=Lax; Max-Age=3600`;
 
     // If challenged, attach PoW challenge payload
     if (decision.shouldChallenge) {
@@ -215,12 +215,12 @@ export class BotGate {
 
   middleware(middlewareOptions: BotGateOptions = {}) {
     const opts = { ...this.options, ...middlewareOptions };
-    const secret = opts.secretKey || process.env.BOTGATE_SECRET || 'bot-gate-default-secret-key-32b!';
+    const secret = opts.secretKey || process.env.TRAFFICGUARD_SECRET || process.env.BOTGATE_SECRET || 'traffic-guard-default-secret-key-32b!';
 
     return async (req: any, res: any, next: (err?: any) => void) => {
       try {
         // Handle PoW Challenge verification endpoint
-        if (req.method === 'POST' && (req.url === '/__botgate/verify' || req.path === '/__botgate/verify')) {
+        if (req.method === 'POST' && (req.url === '/__trafficguard/verify' || req.path === '/__trafficguard/verify' || req.url === '/__botgate/verify' || req.path === '/__botgate/verify')) {
           let body = req.body;
           if (typeof body === 'string') {
             try { body = JSON.parse(body); } catch {}
@@ -234,7 +234,7 @@ export class BotGate {
             const clientHash = createClientHash(ip, userAgent);
             // Grant 30 minutes verification
             const token = signBotToken({ h: clientHash, c: 1, ws: Date.now(), v: Date.now() + 1800_000 }, secret);
-            res.setHeader('Set-Cookie', `__botgate=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=1800`);
+            res.setHeader('Set-Cookie', `__trafficguard=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=1800`);
             return res.status(200).json({ status: 'ok', redirect: returnUrl || '/' });
           } else {
             return res.status(403).json({ error: 'Verification failed' });
@@ -242,6 +242,7 @@ export class BotGate {
         }
 
         const decision = await this.inspect(req, opts);
+        req.trafficGuard = decision;
         req.botGate = decision;
 
         if (decision.setCookieHeader) {
@@ -362,3 +363,6 @@ export class BotGate {
     };
   }
 }
+
+export type TrafficGuard = BotGate;
+export const TrafficGuard = BotGate;

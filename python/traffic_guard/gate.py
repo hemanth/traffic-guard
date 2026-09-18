@@ -68,7 +68,7 @@ class BotGate:
         self.whitelisted_paths = whitelisted_paths or []
         self.whitelisted_ips = whitelisted_ips or []
         self.honeypot_paths = honeypot_paths or []
-        self.secret_key = secret_key or os.environ.get("BOTGATE_SECRET", "bot-gate-default-secret-key-32b!")
+        self.secret_key = secret_key or os.environ.get("TRAFFICGUARD_SECRET") or os.environ.get("BOTGATE_SECRET", "traffic-guard-default-secret-key-32b!")
         self.tarpit_ms = tarpit_ms
         self.enable_pow_challenge = enable_pow_challenge
         self.fallback = fallback
@@ -106,7 +106,7 @@ class BotGate:
         # Stateless HMAC Token & Velocity Tracking (advanced defense pattern)
         user_agent = req.headers.get("user-agent", "")
         client_hash = create_client_hash(req.ip or "", user_agent)
-        raw_cookie = req.cookies.get("__botgate")
+        raw_cookie = req.cookies.get("__trafficguard") or req.cookies.get("__botgate")
         now = time.time()
 
         cookie_payload = verify_bot_token(raw_cookie, self.secret_key) if raw_cookie else None
@@ -210,7 +210,7 @@ class BotGate:
         # Stateless HMAC Token & Velocity Tracking (advanced defense pattern)
         user_agent = req.headers.get("user-agent", "")
         client_hash = create_client_hash(req.ip or "", user_agent)
-        raw_cookie = req.cookies.get("__botgate")
+        raw_cookie = req.cookies.get("__trafficguard") or req.cookies.get("__botgate")
         now = time.time()
 
         cookie_payload = verify_bot_token(raw_cookie, self.secret_key) if raw_cookie else None
@@ -350,3 +350,6 @@ class BotGate:
             reasons=[reason],
             duration_ms=duration,
         )
+
+
+TrafficGuard = BotGate

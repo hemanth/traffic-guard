@@ -1,7 +1,9 @@
 import test, { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import botgate, {
+import trafficguard, {
+  TrafficGuard,
+  botgate,
   createPoWChallenge,
   verifyPoW,
   signBotToken,
@@ -9,7 +11,7 @@ import botgate, {
   createClientHash
 } from '../dist/index.mjs';
 
-describe('bot-gate Node module', () => {
+describe('traffic-guard Node module', () => {
   it('allows normal human browser traffic', async () => {
     const req = {
       method: 'GET',
@@ -146,7 +148,7 @@ describe('bot-gate Node module', () => {
       ip: '1.2.3.4',
       headers: {
         'user-agent': 'Mozilla/5.0',
-        'cookie': `__botgate=${token}`
+        'cookie': `__trafficguard=${token}`
       }
     };
 

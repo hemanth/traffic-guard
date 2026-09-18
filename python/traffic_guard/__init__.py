@@ -1,4 +1,4 @@
-"""bot-gate: AI-powered bot and attack detection gate for web traffic using TypeSafe System One."""
+"""traffic-guard: High-throughput traffic and attack defense gate using TypeSafe System One."""
 
 from __future__ import annotations
 
@@ -14,64 +14,73 @@ from .crypto import (
     verify_bot_token,
     verify_pow,
 )
-from .gate import BotGate
-from .middleware import BotGateMiddleware
+from .gate import BotGate, TrafficGuard
+from .middleware import BotGateMiddleware, TrafficGuardMiddleware
 from .normalizer import NormalizedRequest, RequestContext, check_header_order_anomaly, normalize_request
-from .policy import DEFAULT_POLICIES, BotGateDecision, GatePolicy, evaluate_decision, resolve_policy
+from .policy import DEFAULT_POLICIES, BotGateDecision, GatePolicy, TrafficDecision, evaluate_decision, resolve_policy
 
 __version__ = "0.1.0"
 
-_default_gate: BotGate | None = None
+_default_guard: TrafficGuard | None = None
 
 
-def _get_default_gate() -> BotGate:
-    global _default_gate
-    if _default_gate is None:
-        _default_gate = BotGate()
-    return _default_gate
+def _get_default_guard() -> TrafficGuard:
+    global _default_guard
+    if _default_guard is None:
+        _default_guard = TrafficGuard()
+    return _default_guard
 
 
-async def botgate(
+async def trafficguard(
     request_input: Any,
     policy: str | GatePolicy | dict[str, Any] | None = None,
     **options: Any,
-) -> BotGateDecision:
+) -> TrafficDecision:
     """Asynchronously inspect incoming traffic and return a bot/attack detection decision."""
     if options or policy:
-        gate = BotGate(policy=policy, **options)
-        return await gate.inspect(request_input)
-    return await _get_default_gate().inspect(request_input)
+        guard = TrafficGuard(policy=policy, **options)
+        return await guard.inspect(request_input)
+    return await _get_default_guard().inspect(request_input)
 
 
 def inspect(
     request_input: Any,
     policy: str | GatePolicy | dict[str, Any] | None = None,
     **options: Any,
-) -> BotGateDecision:
+) -> TrafficDecision:
     """Synchronously inspect incoming traffic and return a bot/attack detection decision."""
     if options or policy:
-        gate = BotGate(policy=policy, **options)
-        return gate.inspect_sync(request_input)
-    return _get_default_gate().inspect_sync(request_input)
+        guard = TrafficGuard(policy=policy, **options)
+        return guard.inspect_sync(request_input)
+    return _get_default_guard().inspect_sync(request_input)
 
 
 def create(
     policy: str | GatePolicy | dict[str, Any] | None = None,
     **options: Any,
-) -> BotGate:
-    """Factory to create a configured BotGate instance."""
-    return BotGate(policy=policy, **options)
+) -> TrafficGuard:
+    """Factory to create a configured TrafficGuard instance."""
+    return TrafficGuard(policy=policy, **options)
 
 
-botgate.inspect = inspect  # type: ignore[attr-defined]
-botgate.create = create  # type: ignore[attr-defined]
-botgate.BotGate = BotGate  # type: ignore[attr-defined]
-botgate.Middleware = BotGateMiddleware  # type: ignore[attr-defined]
+trafficguard.inspect = inspect  # type: ignore[attr-defined]
+trafficguard.create = create  # type: ignore[attr-defined]
+trafficguard.TrafficGuard = TrafficGuard  # type: ignore[attr-defined]
+trafficguard.Middleware = TrafficGuardMiddleware  # type: ignore[attr-defined]
+
+# Aliases for ergonomics & backward compatibility
+traffic_guard = trafficguard
+botgate = trafficguard
 
 __all__ = [
+    "trafficguard",
+    "traffic_guard",
     "botgate",
     "inspect",
     "create",
+    "TrafficGuard",
+    "TrafficGuardMiddleware",
+    "TrafficDecision",
     "BotGate",
     "BotGateMiddleware",
     "BotGateDecision",

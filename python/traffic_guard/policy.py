@@ -1,4 +1,4 @@
-"""Routing policies and decision engine for bot-gate."""
+"""Routing policies and decision engine for traffic-guard."""
 
 from __future__ import annotations
 
@@ -66,6 +66,9 @@ class BotGateDecision:
     duration_ms: float = 0.0
     set_cookie_header: str | None = None
     challenge_html: str | None = None
+
+
+TrafficDecision = BotGateDecision
 
 
 def resolve_policy(policy: str | GatePolicy | dict[str, Any] | None) -> GatePolicy:

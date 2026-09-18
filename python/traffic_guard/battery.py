@@ -1,4 +1,4 @@
-"""TypeSafe System One battery definitions and zero-dep heuristic assessment for bot-gate."""
+"""TypeSafe System One battery definitions and zero-dep heuristic assessment for traffic-guard."""
 
 from __future__ import annotations
 

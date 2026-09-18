@@ -1,7 +1,7 @@
 {
-  "name": "bot-gate",
+  "name": "traffic-guard",
   "version": "0.1.0",
-  "description": "AI-powered bot and attack detection gate for web traffic using TypeSafe System One.",
+  "description": "High-throughput traffic and attack defense gate with zero required dependencies, wire-order analysis, and TypeSafe System One acceleration.",
   "type": "module",
   "main": "dist/index.cjs",
   "module": "dist/index.mjs",
@@ -29,12 +29,13 @@
     "prepublishOnly": "npm run build && npm test"
   },
   "keywords": [
+    "traffic-guard",
     "bot-detection",
     "waf",
     "attack-detection",
     "typesafe",
     "system-one",
-    "traffic-gate",
+    "security-gate",
     "zero-dependency",
     "express-middleware"
   ],

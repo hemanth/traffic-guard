@@ -86,6 +86,9 @@ export interface BotGateDecision {
   respond?: (res: any) => Promise<boolean> | boolean;
 }
 
+export type TrafficGuardOptions = BotGateOptions;
+export type TrafficDecision = BotGateDecision;
+
 export type RequestInput =
   | string
   | NormalizedRequest

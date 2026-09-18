@@ -1,8 +1,10 @@
-"""Unit and integration tests for bot-gate Python package."""
+"""Unit and integration tests for traffic-guard Python package."""
 
 import hashlib
 import pytest
-from bot_gate import (
+from traffic_guard import (
+    TrafficGuard,
+    trafficguard,
     BotGate,
     botgate,
     create_client_hash,

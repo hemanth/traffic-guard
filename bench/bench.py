@@ -1,10 +1,10 @@
-"""Science-backed benchmark runner for Python bot-gate."""
+"""Science-backed benchmark runner for Python traffic-guard."""
 
 import json
 import statistics
 import time
 from pathlib import Path
-from bot_gate import BotGate
+from traffic_guard import TrafficGuard, BotGate
 
 
 def run_benchmark():

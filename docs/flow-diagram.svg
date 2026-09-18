@@ -25,7 +25,7 @@
   <rect width="1100" height="720" fill="#ffffff"/>
 
   <!-- ==================== HEADER ==================== -->
-  <text x="44" y="46" fill="#000000" font-size="10" font-weight="700" class="font-mono" letter-spacing="0.16em">BOT-GATE · HIGH-THROUGHPUT THREAT MITIGATION ARCHITECTURE</text>
+  <text x="44" y="46" fill="#000000" font-size="10" font-weight="700" class="font-mono" letter-spacing="0.16em">TRAFFIC-GUARD · HIGH-THROUGHPUT THREAT MITIGATION ARCHITECTURE</text>
   <text x="44" y="68" fill="#555555" font-size="13" class="font-sans">Zero-dependency deterministic pipeline, wire-order sequence validation, and progressive TypeSafe System One arbitration</text>
   <line x1="44" y1="84" x2="1056" y2="84" stroke="#000000" stroke-width="1"/>
 
@@ -58,7 +58,7 @@
   <text x="64" y="156" fill="#000000" font-size="11" font-weight="700" class="font-sans">Client Telemetry</text>
   <text x="64" y="174" fill="#555555" font-size="9" class="font-mono">• IP &amp; Client Signature</text>
   <text x="64" y="188" fill="#555555" font-size="9" class="font-mono">• Wire-Order rawHeaders</text>
-  <text x="64" y="202" fill="#555555" font-size="9" class="font-mono">• __botgate HMAC Cookie</text>
+  <text x="64" y="202" fill="#555555" font-size="9" class="font-mono">• __trafficguard HMAC Cookie</text>
   <text x="64" y="216" fill="#555555" font-size="9" class="font-mono">• Path, Query &amp; Body</text>
 
   <!-- Fast-Path Whitelist Bypass -->

@@ -1,7 +1,7 @@
 """Zero-dependency standard library unittest suite."""
 
 import unittest
-from bot_gate import BotGate, botgate
+from traffic_guard import BotGate, TrafficGuard, botgate, trafficguard
 
 
 class TestBotGate(unittest.TestCase):

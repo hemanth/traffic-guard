@@ -1,4 +1,4 @@
-"""ASGI and WSGI middleware for bot-gate."""
+"""ASGI and WSGI middleware for traffic-guard."""
 
 from __future__ import annotations
 
@@ -34,7 +34,7 @@ class BotGateMiddleware:
         on_tarpit: Callable[[BotGateDecision, Any], Any] | None = None,
     ) -> None:
         self.app = app
-        self.secret_key = secret_key or "bot-gate-default-secret-key-32b!"
+        self.secret_key = secret_key or "traffic-guard-default-secret-key-32b!"
         self.tarpit_ms = tarpit_ms
         self.enable_pow_challenge = enable_pow_challenge
         self.gate = BotGate(
@@ -208,3 +208,6 @@ class BotGateMiddleware:
             await send(message)
 
         await self.app(scope, receive, send_wrapper)
+
+
+TrafficGuardMiddleware = BotGateMiddleware

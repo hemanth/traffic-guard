@@ -1,6 +1,6 @@
 import { createHash, createHmac, randomBytes } from 'node:crypto';
 
-const DEFAULT_SECRET = 'bot-gate-default-secret-key-32b!';
+const DEFAULT_SECRET = 'traffic-guard-default-secret-key-32b!';
 
 export interface BotCookiePayload {
   h: string; // client signature hash (ip + ua)
@@ -133,7 +133,7 @@ export function generateChallengeHtml(seed: string, difficulty: number, returnUr
       }
 
       try {
-        const res = await fetch("/__botgate/verify", {
+        const res = await fetch("/__trafficguard/verify", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ seed, nonce: String(nonce), isAutomated, returnUrl })

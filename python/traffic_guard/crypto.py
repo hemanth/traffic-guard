@@ -11,7 +11,7 @@ import time
 from dataclasses import dataclass
 from typing import Any
 
-DEFAULT_SECRET = "bot-gate-default-secret-key-32b!"
+DEFAULT_SECRET = "traffic-guard-default-secret-key-32b!"
 
 
 @dataclass
@@ -163,7 +163,7 @@ def generate_challenge_html(seed: str, difficulty: int, return_url: str = "/") -
       }}
 
       try {{
-        const res = await fetch("/__botgate/verify", {{
+        const res = await fetch("/__trafficguard/verify", {{
           method: "POST",
           headers: {{ "Content-Type": "application/json" }},
           body: JSON.stringify({{ seed, nonce: String(nonce), isAutomated, returnUrl }})

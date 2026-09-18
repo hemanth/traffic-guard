@@ -1,11 +1,11 @@
-"""Demonstration and traffic simulation script for Python bot-gate."""
+"""Demonstration and traffic simulation script for Python traffic-guard."""
 
 import asyncio
-from bot_gate import BotGate, botgate
+from traffic_guard import TrafficGuard, trafficguard
 
 
 async def main():
-    gate = BotGate(
+    guard = TrafficGuard(
         policy="balanced",
         allow_good_bots=True,
         whitelisted_paths=["/healthz", "/favicon.ico"],
@@ -72,7 +72,7 @@ async def main():
     ]
 
     for s in scenarios:
-        decision = await gate.inspect(s["req"])
+        decision = await guard.inspect(s["req"])
         badge = "[BLOCKED]" if decision.should_block else "[CHALLENGE]" if decision.should_challenge else "[ALLOWED]"
         print(f"{badge:<12} {s['name']}")
         print(f"  Action:     {decision.action}")

@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import botgate, { BotGate } from '../node/dist/index.mjs';
+import trafficguard, { TrafficGuard, BotGate } from '../node/dist/index.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const datasetPath = join(__dirname, 'dataset.json');

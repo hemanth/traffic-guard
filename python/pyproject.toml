@@ -3,9 +3,9 @@ requires = ["flit_core >=3.2,<4"]
 build-backend = "flit_core.buildapi"
 
 [project]
-name = "bot-gate"
+name = "traffic-guard"
 version = "0.1.0"
-description = "AI-powered bot and attack detection gate for web traffic using TypeSafe System One."
+description = "High-throughput traffic and attack defense gate with zero required dependencies and TypeSafe System One acceleration."
 readme = "README.md"
 authors = [
     { name = "Hemanth HM", email = "hemanth@h3manth.com" }
@@ -25,4 +25,4 @@ test = [
 ]
 
 [project.urls]
-Home = "https://github.com/hemanth/bot-gate"
+Home = "https://github.com/hemanth/traffic-guard"
