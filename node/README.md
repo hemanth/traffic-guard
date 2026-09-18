@@ -47,6 +47,23 @@ app.listen(3000);
 4. **Tarpitting (Slowdown Defense)**: Configurable artificial latency delay for scrapers to exhaust their concurrency pools.
 5. **Canary Honeypot Traps**: Immediate blocking of crawlers that scrape invisible honeypot URLs.
 
+## Progressive TypeSafe System One tiering (Optional)
+
+By default, the in-tree zero-dependency engine evaluates traffic in <100 µs. To elevate to TypeSafe System One for semantic reasoning on complex attacks:
+
+```bash
+export TYPESAFE_API_KEY=ts_live_...
+```
+
+```js
+import { TrafficGuard } from 'traffic-guard';
+
+const guard = new TrafficGuard({
+  apiKey: process.env.TYPESAFE_API_KEY,
+  model: 'jev-latest' // default
+});
+```
+
 ## Empirical benchmark
 
 Evaluated on 25 canonical golden test cases (`bench/dataset.json`):

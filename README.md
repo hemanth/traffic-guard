@@ -50,6 +50,37 @@ if decision.should_block:
 4. **Tarpitting (Slowdown Defense)**: Artificial latency delays to exhaust bot concurrency pools.
 5. **Canary Honeypot Traps**: Immediate blocking of crawlers that scrape invisible honeypot URLs.
 
+## Progressive TypeSafe System One tiering (Optional)
+
+By default, `traffic-guard` runs entirely in-tree with zero dependencies in <100 µs. For deep semantic reasoning against long-tail obfuscated attacks and zero false positives, configure your TypeSafe API key:
+
+```bash
+export TYPESAFE_API_KEY=ts_live_...
+```
+
+Or pass it directly in code:
+
+```js
+// Node.js
+import { TrafficGuard } from 'traffic-guard';
+
+const guard = new TrafficGuard({
+  apiKey: process.env.TYPESAFE_API_KEY,
+  model: 'jev-latest' // default
+});
+```
+
+```python
+# Python
+import os
+from traffic_guard import TrafficGuard
+
+guard = TrafficGuard(
+    api_key=os.environ.get("TYPESAFE_API_KEY"),
+    model="jev-latest"
+)
+```
+
 ## Empirical benchmark
 
 Evaluated across 25 canonical ground-truth scenarios (`bench/dataset.json`):
