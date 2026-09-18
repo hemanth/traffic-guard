@@ -1,0 +1,236 @@
+"""Core BotGate implementation for Python."""
+
+from __future__ import annotations
+
+import os
+import re
+import time
+from typing import Any, Callable, Pattern
+
+from typesafe_sdk import AsyncTypeSafeClient, TypeSafeClient
+
+from .battery import AssessmentResult, create_bot_gate_battery, heuristic_assessment
+from .normalizer import normalize_request
+from .policy import BotGateDecision, GatePolicy, evaluate_decision, resolve_policy
+
+
+class BotGate:
+    """AI-powered bot and attack detection gate using TypeSafe System One."""
+
+    def __init__(
+        self,
+        policy: str | GatePolicy | dict[str, Any] | None = None,
+        api_key: str | None = None,
+        endpoint: str | None = None,
+        model: str = "jev-latest",
+        timeout: float = 15.0,
+        allow_good_bots: bool = True,
+        whitelisted_paths: list[str | Pattern] | None = None,
+        whitelisted_ips: list[str] | None = None,
+        fallback: str = "heuristic",  # "heuristic" | "allow" | "block"
+        on_block: Callable[[BotGateDecision, Any], Any] | None = None,
+    ) -> None:
+        self.policy = resolve_policy(policy)
+        self.api_key = api_key or os.environ.get("TYPESAFE_API_KEY")
+        self.endpoint = endpoint or os.environ.get("TYPESAFE_ENDPOINT")
+        self.model = model
+        self.timeout = timeout
+        self.allow_good_bots = allow_good_bots
+        self.whitelisted_paths = whitelisted_paths or []
+        self.whitelisted_ips = whitelisted_ips or []
+        self.fallback = fallback
+        self.on_block = on_block
+        self._battery = create_bot_gate_battery()
+
+    def _is_whitelisted(self, path: str, ip: str | None) -> tuple[bool, str]:
+        for pattern in self.whitelisted_paths:
+            if isinstance(pattern, str) and path == pattern:
+                return True, "Path whitelisted"
+            elif hasattr(pattern, "search") and pattern.search(path):
+                return True, "Path matched whitelist pattern"
+        if ip and self.whitelisted_ips and ip in self.whitelisted_ips:
+            return True, "Client IP whitelisted"
+        return False, ""
+
+    async def inspect(
+        self,
+        request_input: Any,
+        policy: str | GatePolicy | dict[str, Any] | None = None,
+    ) -> BotGateDecision:
+        """Asynchronously inspects an incoming request and returns a detection decision."""
+        start = time.perf_counter()
+        req, ctx = normalize_request(request_input)
+        effective_policy = resolve_policy(policy) if policy else self.policy
+
+        whitelisted, reason = self._is_whitelisted(req.path, req.ip)
+        if whitelisted:
+            return self._allowed_decision(reason, start)
+
+        assessment: AssessmentResult
+
+        if self.api_key:
+            try:
+                state = {
+                    "request": {
+                        "method": req.method,
+                        "path": req.path,
+                        "headers": req.headers,
+                        "query": req.query,
+                        "body": req.body,
+                        "ip": req.ip,
+                    },
+                    "context": {
+                        "missing_browser_headers": ctx.missing_browser_headers,
+                        "suspicious_signatures": ctx.suspicious_signatures,
+                        "claims_browser": ctx.claims_browser,
+                        "is_known_search_bot": ctx.is_known_search_bot,
+                    },
+                }
+                async with AsyncTypeSafeClient(
+                    api_key=self.api_key,
+                    base_url=self.endpoint,
+                    timeout=self.timeout,
+                ) as client:
+                    resp = await client.system_one(
+                        model=self.model,
+                        state=state,
+                        questions=self._battery,
+                    )
+                assessment = self._parse_response(resp)
+            except Exception:
+                if self.fallback == "block":
+                    return self._blocked_decision("TypeSafe API unavailable (fallback: block)", start)
+                elif self.fallback == "allow":
+                    return self._allowed_decision("TypeSafe API unavailable (fallback: allow)", start)
+                assessment = heuristic_assessment(req, ctx)
+        else:
+            assessment = heuristic_assessment(req, ctx)
+
+        duration = round((time.perf_counter() - start) * 1000, 2)
+        return evaluate_decision(
+            assessment=assessment,
+            policy=effective_policy,
+            allow_good_bots=self.allow_good_bots,
+            duration_ms=duration,
+        )
+
+    def inspect_sync(
+        self,
+        request_input: Any,
+        policy: str | GatePolicy | dict[str, Any] | None = None,
+    ) -> BotGateDecision:
+        """Synchronously inspects an incoming request and returns a detection decision."""
+        start = time.perf_counter()
+        req, ctx = normalize_request(request_input)
+        effective_policy = resolve_policy(policy) if policy else self.policy
+
+        whitelisted, reason = self._is_whitelisted(req.path, req.ip)
+        if whitelisted:
+            return self._allowed_decision(reason, start)
+
+        assessment: AssessmentResult
+
+        if self.api_key:
+            try:
+                state = {
+                    "request": {
+                        "method": req.method,
+                        "path": req.path,
+                        "headers": req.headers,
+                        "query": req.query,
+                        "body": req.body,
+                        "ip": req.ip,
+                    },
+                    "context": {
+                        "missing_browser_headers": ctx.missing_browser_headers,
+                        "suspicious_signatures": ctx.suspicious_signatures,
+                        "claims_browser": ctx.claims_browser,
+                        "is_known_search_bot": ctx.is_known_search_bot,
+                    },
+                }
+                with TypeSafeClient(
+                    api_key=self.api_key,
+                    base_url=self.endpoint,
+                    timeout=self.timeout,
+                ) as client:
+                    resp = client.system_one(
+                        model=self.model,
+                        state=state,
+                        questions=self._battery,
+                    )
+                assessment = self._parse_response(resp)
+            except Exception:
+                if self.fallback == "block":
+                    return self._blocked_decision("TypeSafe API unavailable (fallback: block)", start)
+                elif self.fallback == "allow":
+                    return self._allowed_decision("TypeSafe API unavailable (fallback: allow)", start)
+                assessment = heuristic_assessment(req, ctx)
+        else:
+            assessment = heuristic_assessment(req, ctx)
+
+        duration = round((time.perf_counter() - start) * 1000, 2)
+        return evaluate_decision(
+            assessment=assessment,
+            policy=effective_policy,
+            allow_good_bots=self.allow_good_bots,
+            duration_ms=duration,
+        )
+
+    def _parse_response(self, resp: Any) -> AssessmentResult:
+        answers = resp.answers
+
+        is_bot_prob = getattr(answers.get("is_bot"), "noul", 0.1)
+        is_attack_prob = getattr(answers.get("is_attack"), "noul", 0.05)
+        is_spoofed_prob = getattr(answers.get("is_spoofed"), "noul", 0.05)
+
+        traffic_answer = answers.get("traffic_type")
+        traffic_type = getattr(traffic_answer, "choice", "human")
+        traffic_conf = getattr(traffic_answer, "confidence", 0.8)
+        traffic_dist = getattr(traffic_answer, "probabilities", {})
+
+        risk_answer = answers.get("risk_level")
+        risk_score = getattr(risk_answer, "score", 0.0)
+        risk_conf = getattr(risk_answer, "confidence", 0.8)
+        risk_dist = getattr(risk_answer, "probabilities", {})
+
+        return AssessmentResult(
+            is_bot_probability=is_bot_prob,
+            is_attack_probability=is_attack_prob,
+            is_spoofed_probability=is_spoofed_prob,
+            traffic_type=traffic_type,
+            traffic_type_confidence=traffic_conf,
+            traffic_type_distribution=traffic_dist,
+            risk_score=risk_score,
+            risk_confidence=risk_conf,
+            risk_level_distribution=risk_dist,
+        )
+
+    def _allowed_decision(self, reason: str, start: float) -> BotGateDecision:
+        duration = round((time.perf_counter() - start) * 1000, 2)
+        return BotGateDecision(
+            action="allow",
+            should_block=False,
+            should_challenge=False,
+            is_bot=False,
+            is_attack=False,
+            category="human",
+            risk_score=0.0,
+            confidence=1.0,
+            reasons=[reason],
+            duration_ms=duration,
+        )
+
+    def _blocked_decision(self, reason: str, start: float) -> BotGateDecision:
+        duration = round((time.perf_counter() - start) * 1000, 2)
+        return BotGateDecision(
+            action="block",
+            should_block=True,
+            should_challenge=False,
+            is_bot=True,
+            is_attack=True,
+            category="attack",
+            risk_score=3.0,
+            confidence=1.0,
+            reasons=[reason],
+            duration_ms=duration,
+        )
