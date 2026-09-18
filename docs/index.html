@@ -856,6 +856,192 @@
       color: var(--text-muted);
     }
 
+    /* ==========================================================================
+       9-STAGE DEFENSE PIPELINE LADDER
+       ========================================================================== */
+    .pipeline-card {
+      background: #ffffff;
+      border: 1px solid var(--card-border);
+      border-radius: var(--radius-lg);
+      padding: 24px;
+      box-shadow: var(--shadow-card);
+      margin-bottom: 28px;
+    }
+
+    .pipeline-intro {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-bottom: 20px;
+      padding-bottom: 14px;
+      border-bottom: 1px solid #f1f0eb;
+    }
+
+    .pipeline-title {
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--text-main);
+    }
+
+    .pipeline-badge {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      padding: 3px 9px;
+      background: #0f172a;
+      color: #ffffff;
+      border-radius: var(--radius-sm);
+      font-weight: 600;
+    }
+
+    .pipeline-spine {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .pipeline-step {
+      display: grid;
+      grid-template-columns: 36px 1fr auto;
+      align-items: center;
+      gap: 14px;
+      padding: 10px 14px;
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: var(--radius-md);
+      transition: all 0.2s ease;
+    }
+
+    .pipeline-step:hover {
+      border-color: #cbd5e1;
+      background: #fafaf9;
+    }
+
+    .pipeline-step.active-stage {
+      border-color: #0f172a;
+      box-shadow: 0 0 0 2px #0f172a;
+      background: #f8fafc;
+    }
+
+    .step-num {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-muted);
+      width: 28px;
+      height: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--pastel-neutral-bg);
+      border-radius: var(--radius-full);
+    }
+
+    .pipeline-step.active-stage .step-num {
+      background: #0f172a;
+      color: #ffffff;
+    }
+
+    .step-body {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      min-width: 0;
+    }
+
+    .step-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text-main);
+    }
+
+    .step-desc {
+      font-size: 11px;
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .step-exit {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 600;
+      flex-shrink: 0;
+    }
+
+    .exit-arrow {
+      color: var(--text-subtle);
+    }
+
+    .exit-pill {
+      padding: 3px 8px;
+      border-radius: 5px;
+      font-size: 10.5px;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+    }
+
+    .exit-pill.allow {
+      background: var(--pastel-allow-bg);
+      color: var(--pastel-allow-text);
+      border: 1px solid var(--pastel-allow-border);
+    }
+
+    .exit-pill.challenge {
+      background: var(--pastel-warn-bg);
+      color: var(--pastel-warn-text);
+      border: 1px solid var(--pastel-warn-border);
+    }
+
+    .exit-pill.tarpit {
+      background: var(--pastel-tarpit-bg);
+      color: var(--pastel-tarpit-text);
+      border: 1px solid var(--pastel-tarpit-border);
+    }
+
+    .exit-pill.block {
+      background: var(--pastel-block-bg);
+      color: var(--pastel-block-text);
+      border: 1px solid var(--pastel-block-border);
+    }
+
+    .exit-pill.flag {
+      background: #f1f5f9;
+      color: #334155;
+      border: 1px solid #cbd5e1;
+    }
+
+    .exit-pill.semantic {
+      background: #ede9fe;
+      color: #5b21b6;
+      border: 1px solid #ddd6fe;
+    }
+
+    @media (max-width: 768px) {
+      .pipeline-step {
+        grid-template-columns: 32px 1fr;
+        gap: 10px;
+      }
+      .step-exit {
+        grid-column: span 2;
+        margin-left: 42px;
+      }
+      .step-desc {
+        white-space: normal;
+      }
+    }
+
     .diagram-frame {
       background: #ffffff;
       border: 1px solid var(--card-border);
@@ -1202,8 +1388,141 @@
       </p>
     </div>
 
+    <!-- Interactive 9-Stage Pipeline Ladder -->
+    <div class="pipeline-card">
+      <div class="pipeline-intro">
+        <div class="pipeline-title">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
+          <span>9-Stage Progressive Layer-7 Defense Pipeline</span>
+        </div>
+        <div style="display: flex; gap: 8px; align-items: center;">
+          <span style="font-size: 12px; color: var(--text-muted);">Decisive Stage for Active Preset:</span>
+          <span class="pipeline-badge" id="activeStageBadge">Stage 1–5: Clean Pass</span>
+        </div>
+      </div>
+
+      <div class="pipeline-spine" id="pipelineLadder">
+        <!-- Stage 1 -->
+        <div class="pipeline-step" id="stage-step-1">
+          <div class="step-num">01</div>
+          <div class="step-body">
+            <div class="step-title">Fast-Path O(1) Whitelists</div>
+            <div class="step-desc">Exact path equality (/healthz, /metrics) &amp; client IP set lookup</div>
+          </div>
+          <div class="step-exit">
+            <span class="exit-arrow">──►</span>
+            <span class="exit-pill allow">[ALLOW] &lt; 1 µs</span>
+          </div>
+        </div>
+
+        <!-- Stage 2 -->
+        <div class="pipeline-step" id="stage-step-2">
+          <div class="step-num">02</div>
+          <div class="step-body">
+            <div class="step-title">Cryptographic HMAC Pass Cookie</div>
+            <div class="step-desc">Valid signed session (__trafficguard token, verified HashCash pass, 0 regex)</div>
+          </div>
+          <div class="step-exit">
+            <span class="exit-arrow">──►</span>
+            <span class="exit-pill allow">[ALLOW] 0 regex</span>
+          </div>
+        </div>
+
+        <!-- Stage 3 -->
+        <div class="pipeline-step" id="stage-step-3">
+          <div class="step-num">03</div>
+          <div class="step-body">
+            <div class="step-title">Canary Honeypot Path Matching</div>
+            <div class="step-desc">Exact path equality (/__bg_trap) catching crawlers ignoring robots.txt</div>
+          </div>
+          <div class="step-exit">
+            <span class="exit-arrow">──►</span>
+            <span class="exit-pill block">[BLOCK] Honeypot Trap</span>
+          </div>
+        </div>
+
+        <!-- Stage 4 -->
+        <div class="pipeline-step" id="stage-step-4">
+          <div class="step-num">04</div>
+          <div class="step-body">
+            <div class="step-title">Wire-Order Protocol Sequence</div>
+            <div class="step-desc">Array index order: User-Agent sent before Host flags script spoofing</div>
+          </div>
+          <div class="step-exit">
+            <span class="exit-arrow">──►</span>
+            <span class="exit-pill challenge">[CHALLENGE] Wire Disorder</span>
+          </div>
+        </div>
+
+        <!-- Stage 5 -->
+        <div class="pipeline-step" id="stage-step-5">
+          <div class="step-num">05</div>
+          <div class="step-body">
+            <div class="step-title">Client Hints &amp; Header Coherence</div>
+            <div class="step-desc">Dictionary lookups: claims Chromium browser but missing sec-ch-ua / accept-language</div>
+          </div>
+          <div class="step-exit">
+            <span class="exit-arrow">──►</span>
+            <span class="exit-pill flag">[FLAG] Header Anomaly</span>
+          </div>
+        </div>
+
+        <!-- Stage 6 -->
+        <div class="pipeline-step" id="stage-step-6">
+          <div class="step-num">06</div>
+          <div class="step-body">
+            <div class="step-title">Information-Theoretic Shannon Entropy</div>
+            <div class="step-desc">Byte frequency math: H(X) &gt; 4.6 catches obfuscated shellcode and random fuzzers</div>
+          </div>
+          <div class="step-exit">
+            <span class="exit-arrow">──►</span>
+            <span class="exit-pill flag">[FLAG] High Entropy</span>
+          </div>
+        </div>
+
+        <!-- Stage 7 -->
+        <div class="pipeline-step" id="stage-step-7">
+          <div class="step-num">07</div>
+          <div class="step-body">
+            <div class="step-title">Substring Signatures (SIMD .includes)</div>
+            <div class="step-desc">Fast exact substring search: 'sqlmap', 'nikto', 'dirbuster', 'union select', 'sleep('</div>
+          </div>
+          <div class="step-exit">
+            <span class="exit-arrow">──►</span>
+            <span class="exit-pill block">[BLOCK] Known Signature</span>
+          </div>
+        </div>
+
+        <!-- Stage 8 -->
+        <div class="pipeline-step" id="stage-step-8">
+          <div class="step-num">08</div>
+          <div class="step-body">
+            <div class="step-title">Targeted Exploit Grammar Regexes</div>
+            <div class="step-desc">Multi-token grammar inspection: decoded SQLi, Log4Shell (${jndi:), XSS, Path Traversal</div>
+          </div>
+          <div class="step-exit">
+            <span class="exit-arrow">──►</span>
+            <span class="exit-pill block">[BLOCK] Exploit Grammar</span>
+          </div>
+        </div>
+
+        <!-- Stage 9 -->
+        <div class="pipeline-step" id="stage-step-9">
+          <div class="step-num">09</div>
+          <div class="step-body">
+            <div class="step-title">TypeSafe System One Cloud ML (Optional)</div>
+            <div class="step-desc">5 typed Bayesian questions: deep semantic reasoning on ambiguous / gray-zone traffic</div>
+          </div>
+          <div class="step-exit">
+            <span class="exit-arrow">──►</span>
+            <span class="exit-pill semantic">[SEMANTIC VERDICT] Jev</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div class="diagram-frame">
-      <img src="flow-diagram.svg" alt="traffic-guard Architecture Diagram" width="1100" height="720">
+      <img src="flow-diagram.svg" alt="traffic-guard 9-Stage Defense Architecture Diagram" width="1140" height="1060">
     </div>
   </section>
 
@@ -1911,6 +2230,49 @@
         }
       };
       jsonOutput.textContent = JSON.stringify(jsonDump, null, 2);
+
+      // Highlight active stage in the 9-stage pipeline ladder
+      let decisiveStage = 1;
+      let stageText = 'Stage 1–5: Clean Protocol Pass';
+
+      const reasonsJoined = (decision.reasons || []).join(' ').toLowerCase();
+
+      if (reasonsJoined.includes('honeypot')) {
+        decisiveStage = 3;
+        stageText = 'Stage 3: Canary Honeypot Triggered';
+      } else if (reasonsJoined.includes('abnormal') || reasonsJoined.includes('wire') || reasonsJoined.includes('order')) {
+        decisiveStage = 4;
+        stageText = 'Stage 4: Wire-Order Sequence Disorder';
+      } else if (reasonsJoined.includes('missing') || reasonsJoined.includes('hints')) {
+        decisiveStage = 5;
+        stageText = 'Stage 5: Header Anomaly Flagged';
+      } else if (reasonsJoined.includes('entropy')) {
+        decisiveStage = 6;
+        stageText = 'Stage 6: Shannon Entropy Flagged';
+      } else if (reasonsJoined.includes('scanner') || reasonsJoined.includes('scraper')) {
+        decisiveStage = 7;
+        stageText = 'Stage 7: Substring Signature Matched';
+      } else if (reasonsJoined.includes('sql injection') || reasonsJoined.includes('remote code') || reasonsJoined.includes('cross-site') || reasonsJoined.includes('path traversal')) {
+        decisiveStage = 8;
+        stageText = 'Stage 8: Exploit Grammar Regex Matched';
+      } else if (currentEngine === 'typesafe') {
+        decisiveStage = 9;
+        stageText = 'Stage 9: TypeSafe Cloud ML Evaluated';
+      } else if (decision.action === 'allow') {
+        decisiveStage = decision.trafficType === 'good_bot' ? 5 : 2;
+        stageText = decision.trafficType === 'good_bot' ? 'Stage 5: Verified Search Bot Allowed' : 'Stage 1–2: Protocol Pass / Valid Session';
+      }
+
+      for (let i = 1; i <= 9; i++) {
+        const stepEl = document.getElementById(`stage-step-${i}`);
+        if (stepEl) {
+          stepEl.classList.toggle('active-stage', i === decisiveStage);
+        }
+      }
+      const activeBadge = document.getElementById('activeStageBadge');
+      if (activeBadge) {
+        activeBadge.textContent = stageText;
+      }
     }
 
     // --------------------------------------------------------------------------
