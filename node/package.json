@@ -1,6 +1,6 @@
 {
   "name": "traffic-guard",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "High-throughput traffic and attack defense gate with zero required dependencies, wire-order analysis, and TypeSafe System One acceleration.",
   "type": "module",
   "main": "dist/index.cjs",

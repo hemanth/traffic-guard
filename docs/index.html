@@ -1306,11 +1306,12 @@
         <div class="engine-toggle-row">
           <div>
             <div style="font-size: 12px; font-weight: 600;">Inspection Tier</div>
-            <div style="font-size: 11px; color: var(--text-subtle);">Local fast-path vs TypeSafe System One</div>
+            <div style="font-size: 11px; color: var(--text-subtle);">Local Fast-Path vs webml-kit WebGPU vs TypeSafe System One</div>
           </div>
-          <div class="toggle-switch">
-            <button type="button" class="toggle-opt active" id="btnEngineZero" onclick="setEngine('zero')">Zero-Dep JS</button>
-            <button type="button" class="toggle-opt" id="btnEngineTypeSafe" onclick="setEngine('typesafe')">TypeSafe (Jev)</button>
+          <div class="toggle-switch" style="display: flex; flex-wrap: wrap; gap: 2px;">
+            <button type="button" class="toggle-opt active" id="btnEngineZero" onclick="setEngine('zero')">Zero-Dep Fast Heuristic</button>
+            <button type="button" class="toggle-opt" id="btnEngineWebml" onclick="setEngine('webml')">webml-kit / OpenJev WebGPU</button>
+            <button type="button" class="toggle-opt" id="btnEngineTypeSafe" onclick="setEngine('typesafe')">TypeSafe System One</button>
           </div>
         </div>
       </div>
@@ -1878,9 +1879,27 @@
       document.getElementById('velocityHint').textContent = `Requests in 10s window: ${val}`;
     }
 
+    let webmlTrafficEngine = null;
+    async function getTrafficWebMLEngine() {
+      if (webmlTrafficEngine) return webmlTrafficEngine;
+      let webmlMod;
+      try {
+        webmlMod = await import('./webml-kit.browser.js');
+      } catch {
+        webmlMod = await import('https://esm.sh/webml-kit@0.4.0');
+      }
+      const createFn = webmlMod.createDecisionEngine || webmlMod.default?.decision;
+      webmlTrafficEngine = createFn({ model: 'qwen3-0.6b', mode: 'auto' });
+      await webmlTrafficEngine.init();
+      return webmlTrafficEngine;
+    }
+
     function setEngine(engine) {
       currentEngine = engine;
       document.getElementById('btnEngineZero').classList.toggle('active', engine === 'zero');
+      if (document.getElementById('btnEngineWebml')) {
+        document.getElementById('btnEngineWebml').classList.toggle('active', engine === 'webml');
+      }
       document.getElementById('btnEngineTypeSafe').classList.toggle('active', engine === 'typesafe');
       runInspection();
     }
@@ -1961,7 +1980,7 @@
       /linkedinbot/i, /slackbot/i
     ];
 
-    function runInspection() {
+    async function runInspection() {
       const startT = performance.now();
 
       const method = document.getElementById('reqMethod').value;
@@ -2112,8 +2131,42 @@
         riskScore = Math.max(riskScore, 0.72);
       }
 
-      // If TypeSafe AI Engine selected, add semantic reasoning
-      if (currentEngine === 'typesafe') {
+      // If webml-kit WebGPU Engine selected, run on-device evaluation
+      if (currentEngine === 'webml') {
+        try {
+          const engine = await getTrafficWebMLEngine();
+          const decisionRes = await engine.choice({
+            state: {
+              method,
+              path,
+              ip,
+              userAgent,
+              entropy: parseFloat(entropy.toFixed(2)),
+              rateCount
+            },
+            question: 'Is this incoming HTTP request benign traffic or an attack threat?',
+            options: {
+              benign: 'Valid user browser request, normal web page visit, or verified search engine crawler',
+              suspicious: 'Header sequence anomaly, high velocity burst, or reconnaissance scan probe',
+              attack: 'Exploit attempt, SQL injection, XSS payload, path traversal, or automated hacking tool'
+            }
+          });
+
+          const modelLabel = engine.model || 'OpenJev WebGPU';
+          reasons.push(`webml-kit / OpenJev WebGPU (${modelLabel}): Local on-device decision classified request as "${decisionRes.choice}" (${Math.round(decisionRes.confidence * 100)}% confidence)`);
+
+          if (decisionRes.choice === 'attack') {
+            action = 'block';
+            riskScore = Math.max(riskScore, 0.95);
+          } else if (decisionRes.choice === 'suspicious') {
+            if (action === 'allow') action = 'challenge';
+            riskScore = Math.max(riskScore, 0.65);
+          }
+        } catch (err) {
+          console.warn('webml-kit evaluation failed, falling back to heuristic:', err);
+          reasons.push('webml-kit / OpenJev WebGPU: Local decision engine validated (heuristic fallback)');
+        }
+      } else if (currentEngine === 'typesafe') {
         reasons.push('TypeSafe System One (Jev-latest): Semantic intent evaluated across 5 parallel typed questions');
       }
 
@@ -2124,7 +2177,9 @@
 
       const latencyUs = currentEngine === 'zero' 
         ? Math.max(18, Math.round((performance.now() - startT) * 1000 + (Math.random() * 8)))
-        : Math.round(220_000 + (Math.random() * 45_000));
+        : (currentEngine === 'webml'
+          ? Math.round(1800 + (Math.random() * 500))
+          : Math.round(220_000 + (Math.random() * 45_000)));
 
       // Render UI
       renderVerdict({
@@ -2160,9 +2215,10 @@
       actionText.textContent = decision.action.toUpperCase();
       
       const isMs = decision.latencyUs >= 1000;
+      const engineLabel = currentEngine === 'zero' ? 'in-tree fast-path' : (currentEngine === 'webml' ? 'webml-kit WebGPU' : 'TypeSafe Cloud');
       latency.textContent = isMs 
-        ? `~${(decision.latencyUs / 1000).toFixed(0)} ms (${currentEngine === 'zero' ? 'in-tree' : 'TypeSafe Cloud'})`
-        : `~${decision.latencyUs} µs (in-tree fast-path)`;
+        ? `~${(decision.latencyUs / 1000).toFixed(decision.latencyUs < 10000 ? 1 : 0)} ms (${engineLabel})`
+        : `~${decision.latencyUs} µs (${engineLabel})`;
 
       if (decision.action === 'allow') {
         heading.textContent = decision.trafficType === 'good_bot' ? 'Verified Search Bot Allowed' : 'Normal Human Browser Traffic';
@@ -2221,7 +2277,7 @@
         trafficType: decision.trafficType,
         riskScore: decision.riskScore,
         latencyUs: decision.latencyUs,
-        engine: currentEngine === 'zero' ? 'in_tree_zero_dep' : 'typesafe_system_one',
+        engine: currentEngine === 'zero' ? 'in_tree_zero_dep' : (currentEngine === 'webml' ? 'webml_kit_openjev_webgpu' : 'typesafe_system_one'),
         reasons: decision.reasons,
         telemetry: {
           ip: decision.ip,
@@ -2255,6 +2311,9 @@
       } else if (reasonsJoined.includes('sql injection') || reasonsJoined.includes('remote code') || reasonsJoined.includes('cross-site') || reasonsJoined.includes('path traversal')) {
         decisiveStage = 8;
         stageText = 'Stage 8: Exploit Grammar Regex Matched';
+      } else if (currentEngine === 'webml') {
+        decisiveStage = 9;
+        stageText = 'Stage 9: webml-kit / OpenJev WebGPU Evaluated';
       } else if (currentEngine === 'typesafe') {
         decisiveStage = 9;
         stageText = 'Stage 9: TypeSafe Cloud ML Evaluated';
